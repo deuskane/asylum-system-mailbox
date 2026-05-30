@@ -1,0 +1,80 @@
+{
+    name      : "mailbox",
+    width     : 8,
+    desc      : "CSR for mailbox"
+    interface : "sbi"
+
+    parameters : [
+	{
+	    name         : "FIFO0_DEPTH_TX"
+	    desc         : "FIFO0 Depth of FIFO TX (SW2HW)"
+	    type         : "natural"
+	}
+	{
+	    name         : "FIFO0_DEPTH_RX"
+	    desc         : "FIFO0 Depth of FIFO RX (HW2SW)"
+	    type         : "natural"
+	}
+	{
+	    name         : "FIFO1_DEPTH_TX"
+	    desc         : "FIFO1 Depth of FIFO TX (SW2HW)"
+	    type         : "natural"
+	}
+	{
+	    name         : "FIFO1_DEPTH_RX"
+	    desc         : "FIFO1 Depth of FIFO RX (HW2SW)"
+	    type         : "natural"
+	}
+    ]
+
+    registers : [
+
+	{
+            name         : "fifo0",
+            address      : "x0",
+            desc         : "FIFO0",
+            swaccess     : "rw",
+            hwaccess     : "rw",
+            hwtype       : "fifo",
+
+            params: {
+                BLOCKING_READ  : "True", 
+                BLOCKING_WRITE : "True",
+		        DEPTH_SW2HW    : "FIFO0_DEPTH_TX"
+		        DEPTH_HW2SW    : "FIFO0_DEPTH_RX"
+            }
+
+            fields: [
+                {
+                    name: "value",
+                    bits: "7:0",
+                    desc: "Data TX or Data RX"
+                },
+            ]
+        },
+	{
+            name         : "fifo1",
+            address      : "x2",
+            desc         : "FIFO1",
+            swaccess     : "rw",
+            hwaccess     : "rw",
+            hwtype       : "fifo",
+
+            params: {
+                BLOCKING_READ  : "True", 
+                BLOCKING_WRITE : "True",
+		        DEPTH_SW2HW    : "FIFO1_DEPTH_TX"
+		        DEPTH_HW2SW    : "FIFO1_DEPTH_RX"
+            }
+
+            fields: [
+                {
+                    name: "value",
+                    bits: "7:0",
+                    desc: "FIFO1 : Data TX or Data RX"
+                },
+            ]
+        },
+
+]
+}

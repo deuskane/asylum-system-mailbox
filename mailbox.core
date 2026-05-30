@@ -1,0 +1,67 @@
+CAPI=2:
+
+#-----------------------------------------------------------------------------
+# Title      : mailbox Core file
+# Project    : Asylum
+#-----------------------------------------------------------------------------
+# File       : mailbox.core
+# Author     : mrosiere
+#-----------------------------------------------------------------------------
+# Description: 
+#-----------------------------------------------------------------------------
+# Copyright (c) 2025
+#-----------------------------------------------------------------------------
+# Revisions  :
+# Date        Version  Author   Description
+# 2026/05/25  1.0.0    mrosiere First Release
+#-----------------------------------------------------------------------------
+
+name        : asylum:system:mailbox:1.0.0
+description : mailbox Module
+
+#=========================================
+generate:
+#=========================================
+
+  #---------------------------------------
+  gen_csr:
+  #---------------------------------------
+    generator : regtool
+    parameters:
+      file         : hdl/csr/mailbox.hjson
+      name         : mailbox
+      copy         : hdl/csr
+      logical_name : asylum
+
+#=========================================
+filesets:
+#=========================================
+
+  #---------------------------------------
+  hdl:
+  #---------------------------------------
+    files        :
+      - hdl/mailbox_pkg.vhd
+      - hdl/sbi_mailbox.vhd
+    file_type    : vhdlSource
+    logical_name : asylum
+    depend       :
+      - asylum:utils:generators
+      - asylum:utils:pkg
+      - asylum:target:techmap
+
+#=========================================
+targets:
+#=========================================
+
+  #---------------------------------------
+  default: &default
+  #---------------------------------------
+    description     : Default Target
+    filesets        :
+      - hdl
+    toplevel        : mailbox
+    default_tool    : ghdl
+    generate        :
+      - gen_csr
+
