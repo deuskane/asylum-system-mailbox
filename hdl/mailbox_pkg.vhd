@@ -29,6 +29,12 @@ package mailbox_pkg is
   
 -- [COMPONENT_INSERT][BEGIN]
 component sbi_mailbox is
+  generic (
+    FIFO0_DEPTH_TX : natural -- FIFO0 Depth of FIFO TX (SW2HW)
+   ;FIFO0_DEPTH_RX : natural -- FIFO0 Depth of FIFO RX (HW2SW)
+   ;FIFO1_DEPTH_TX : natural -- FIFO1 Depth of FIFO TX (SW2HW)
+   ;FIFO1_DEPTH_RX : natural -- FIFO1 Depth of FIFO RX (HW2SW)
+  );
   port   (
     clk_i            : in  std_logic;
     arst_b_i         : in  std_logic; -- asynchronous reset

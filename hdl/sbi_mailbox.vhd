@@ -72,5 +72,13 @@ begin  -- architecture rtl
    ,sw2hw_o   => sw2hw    
    ,hw2sw_i   => hw2sw   
     );
+
+  hw2sw.fifo0.valid <= sw2hw.fifo0.valid;
+  hw2sw.fifo0.ready <= sw2hw.fifo0.ready;
+  hw2sw.fifo0.value <= sw2hw.fifo0.value;
+  
+  hw2sw.fifo1.valid <= sw2hw.fifo1.valid;
+  hw2sw.fifo1.ready <= sw2hw.fifo1.ready;
+  hw2sw.fifo1.value <= sw2hw.fifo1.value;
   
 end architecture rtl;
