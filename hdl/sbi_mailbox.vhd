@@ -34,10 +34,11 @@ use     asylum.techmap_pkg.all;
 
 entity sbi_mailbox is
   generic (
-    FIFO0_DEPTH_TX : natural -- FIFO0 Depth of FIFO TX (SW2HW)
-   ;FIFO0_DEPTH_RX : natural -- FIFO0 Depth of FIFO RX (HW2SW)
-   ;FIFO1_DEPTH_TX : natural -- FIFO1 Depth of FIFO TX (SW2HW)
-   ;FIFO1_DEPTH_RX : natural -- FIFO1 Depth of FIFO RX (HW2SW)
+    NAME             : string  := ""
+   ;FIFO0_DEPTH_TX   : natural -- FIFO0 Depth of FIFO TX (SW2HW)
+   ;FIFO0_DEPTH_RX   : natural -- FIFO0 Depth of FIFO RX (HW2SW)
+   ;FIFO1_DEPTH_TX   : natural -- FIFO1 Depth of FIFO TX (SW2HW)
+   ;FIFO1_DEPTH_RX   : natural -- FIFO1 Depth of FIFO RX (HW2SW)
   );
   port   (
     clk_i            : in  std_logic;
@@ -59,7 +60,8 @@ begin  -- architecture rtl
 
   ins_csr : mailbox_registers
   generic map(
-    FIFO0_DEPTH_TX => FIFO0_DEPTH_TX
+    MODULE_NAME    => NAME
+   ,FIFO0_DEPTH_TX => FIFO0_DEPTH_TX
    ,FIFO0_DEPTH_RX => FIFO0_DEPTH_RX
    ,FIFO1_DEPTH_TX => FIFO1_DEPTH_TX
    ,FIFO1_DEPTH_RX => FIFO1_DEPTH_RX

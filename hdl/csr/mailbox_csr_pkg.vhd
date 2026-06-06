@@ -106,7 +106,8 @@ package mailbox_csr_pkg is
   ------------------------------------
 component mailbox_registers is
   generic (
-    FIFO0_DEPTH_TX : natural -- FIFO0 Depth of FIFO TX (SW2HW)
+    MODULE_NAME :  string := "" -- Name of the module
+   ;FIFO0_DEPTH_TX : natural -- FIFO0 Depth of FIFO TX (SW2HW)
    ;FIFO0_DEPTH_RX : natural -- FIFO0 Depth of FIFO RX (HW2SW)
    ;FIFO1_DEPTH_TX : natural -- FIFO1 Depth of FIFO TX (SW2HW)
    ;FIFO1_DEPTH_RX : natural -- FIFO1 Depth of FIFO RX (HW2SW)

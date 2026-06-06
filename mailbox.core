@@ -13,10 +13,11 @@ CAPI=2:
 #-----------------------------------------------------------------------------
 # Revisions  :
 # Date        Version  Author   Description
-# 2026/05/25  1.0.0    mrosiere First Release
+# 2026-05-25  1.0.0    mrosiere First Release
+# 2026-06-06  1.0.1    mrosiere Add Name
 #-----------------------------------------------------------------------------
 
-name        : asylum:system:mailbox:1.0.0
+name        : asylum:system:mailbox:1.0.1
 description : mailbox Module
 
 #=========================================
