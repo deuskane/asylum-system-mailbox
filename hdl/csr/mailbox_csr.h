@@ -34,11 +34,11 @@
 #define MAILBOX_FIFO1_VALUE_MASK 255
 
 //----------------------------------
-// Structure {module}_t
+// Structure mailbox_t
 //----------------------------------
 typedef struct {
   uint8_t fifo0; // 0x0
-  uint8_t __dummy_0x1__
+  uint8_t __dummy_0x1__;
   uint8_t fifo1; // 0x2
 } mailbox_t;
 
