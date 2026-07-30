@@ -42,13 +42,13 @@ architecture rtl of mailbox_registers is
 
   signal   sig_wcs   : std_logic;
   signal   sig_we    : std_logic;
-  signal   sig_waddr : std_logic_vector(sbi_ini_i.addr'length-1 downto 0);
+  signal   sig_waddr : unsigned(mailbox_ADDR_WIDTH-1 downto 0);
   signal   sig_wdata : std_logic_vector(sbi_ini_i.wdata'length-1 downto 0);
   signal   sig_wbusy : std_logic;
 
   signal   sig_rcs   : std_logic;
   signal   sig_re    : std_logic;
-  signal   sig_raddr : std_logic_vector(sbi_ini_i.addr'length-1 downto 0);
+  signal   sig_raddr : unsigned(mailbox_ADDR_WIDTH-1 downto 0);
   signal   sig_rdata : std_logic_vector(sbi_tgt_o.rdata'length-1 downto 0);
   signal   sig_rbusy : std_logic;
 
@@ -103,12 +103,12 @@ begin  -- architecture rtl
   -- Interface 
   sig_wcs   <= sbi_ini_i.cs;
   sig_we    <= sbi_ini_i.we;
-  sig_waddr <= sbi_ini_i.addr;
+  sig_waddr <= unsigned(sbi_ini_i.addr(mailbox_ADDR_WIDTH-1 downto 0));
   sig_wdata <= sbi_ini_i.wdata;
 
   sig_rcs   <= sbi_ini_i.cs;
   sig_re    <= sbi_ini_i.re;
-  sig_raddr <= sbi_ini_i.addr;
+  sig_raddr <= unsigned(sbi_ini_i.addr(mailbox_ADDR_WIDTH-1 downto 0));
   sbi_tgt_o.rdata <= sig_rdata;
   sbi_tgt_o.ready <= not sig_busy;
 
@@ -134,7 +134,7 @@ begin  -- architecture rtl
   --==================================
 
 
-    fifo0_rcs     <= '1' when     (sig_raddr(mailbox_ADDR_WIDTH-1 downto 0) = std_logic_vector(to_unsigned(0,mailbox_ADDR_WIDTH))) else '0';
+    fifo0_rcs     <= '1' when (sig_raddr = mailbox_FIFO0) else '0';
     fifo0_re      <= sig_rcs and sig_re and fifo0_rcs;
     fifo0_rdata   <= (
       0 => fifo0_rdata_sw(0), -- value(0)
@@ -147,7 +147,7 @@ begin  -- architecture rtl
       7 => fifo0_rdata_sw(7), -- value(7)
       others => '0');
 
-    fifo0_wcs     <= '1' when       (sig_waddr(mailbox_ADDR_WIDTH-1 downto 0) = std_logic_vector(to_unsigned(0,mailbox_ADDR_WIDTH)))   else '0';
+    fifo0_wcs     <= '1' when       (sig_waddr = mailbox_FIFO0)   else '0';
     fifo0_we      <= sig_wcs and sig_we and fifo0_wcs;
     fifo0_wdata   <= sig_wdata;
     fifo0_wdata_sw(7 downto 0) <= fifo0_wdata(7 downto 0); -- value
@@ -215,7 +215,7 @@ begin  -- architecture rtl
   --==================================
 
 
-    fifo1_rcs     <= '1' when     (sig_raddr(mailbox_ADDR_WIDTH-1 downto 0) = std_logic_vector(to_unsigned(2,mailbox_ADDR_WIDTH))) else '0';
+    fifo1_rcs     <= '1' when (sig_raddr = mailbox_FIFO1) else '0';
     fifo1_re      <= sig_rcs and sig_re and fifo1_rcs;
     fifo1_rdata   <= (
       0 => fifo1_rdata_sw(0), -- value(0)
@@ -228,7 +228,7 @@ begin  -- architecture rtl
       7 => fifo1_rdata_sw(7), -- value(7)
       others => '0');
 
-    fifo1_wcs     <= '1' when       (sig_waddr(mailbox_ADDR_WIDTH-1 downto 0) = std_logic_vector(to_unsigned(2,mailbox_ADDR_WIDTH)))   else '0';
+    fifo1_wcs     <= '1' when       (sig_waddr = mailbox_FIFO1)   else '0';
     fifo1_we      <= sig_wcs and sig_we and fifo1_wcs;
     fifo1_wdata   <= sig_wdata;
     fifo1_wdata_sw(7 downto 0) <= fifo1_wdata(7 downto 0); -- value
