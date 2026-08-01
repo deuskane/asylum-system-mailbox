@@ -18,8 +18,8 @@ package mailbox_csr_pkg is
   -- Global Constants
   ------------------------------------
 
-  constant mailbox_ADDR_WIDTH : natural := 2;
-  constant mailbox_DATA_WIDTH : natural := 8;
+  constant MAILBOX_ADDR_WIDTH : natural := 2;
+  constant MAILBOX_DATA_WIDTH : natural := 8;
 
   --==================================
   -- Register    : fifo0
@@ -30,7 +30,7 @@ package mailbox_csr_pkg is
   -- Hw Access   : rw
   -- Hw Type     : fifo
   --==================================
-  constant mailbox_FIFO0 : unsigned(mailbox_ADDR_WIDTH-1 downto 0) := to_unsigned(0, mailbox_ADDR_WIDTH);
+  constant MAILBOX_FIFO0 : unsigned(MAILBOX_ADDR_WIDTH-1 downto 0) := to_unsigned(0, MAILBOX_ADDR_WIDTH);
 
   type mailbox_fifo0_sw2hw_t is record
     ready : std_logic;
@@ -67,7 +67,7 @@ package mailbox_csr_pkg is
   -- Hw Access   : rw
   -- Hw Type     : fifo
   --==================================
-  constant mailbox_FIFO1 : unsigned(mailbox_ADDR_WIDTH-1 downto 0) := to_unsigned(2, mailbox_ADDR_WIDTH);
+  constant MAILBOX_FIFO1 : unsigned(MAILBOX_ADDR_WIDTH-1 downto 0) := to_unsigned(2, MAILBOX_ADDR_WIDTH);
 
   type mailbox_fifo1_sw2hw_t is record
     ready : std_logic;
