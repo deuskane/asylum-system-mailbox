@@ -1,43 +1,273 @@
+<!--
+  README GENERATION INSTRUCTIONS (for the next regeneration run)
+  ----------------------------------------------------------------
+  This README follows the common Asylum IP model. Regenerate it from the
+  sources, never from the previous README text alone.
+
+  Sources of truth (in priority order):
+    1. hdl/*.vhd            : entities, generics, ports, packages
+    2. hdl/csr/*.hjson      : register map (regtool); *_csr.md/.h are generated
+    3. <IP>.core            : VLNV (name), filesets, targets, depends, revisions
+    4. mk/targets.txt       : target list shown by `make help`; mk/defs.mk
+    5. sim/, syn/, esw/, boards/ : testbenches, constraints, software
+  Section order (keep it, same headings in every IP):
+    CI badge / Title + one-line description + VLNV / Table of Contents /
+    Introduction (Key Features) / Block Diagram / Top-Level (Parameters,
+    Ports, Instantiation Example) / HDL Modules / Register Map /
+    Verification / Synthesis / Design Notes (optional) /
+    Directory Structure / Dependencies
+  Rules:
+    - Language: English. Tables: Parameters = Name|Type|Default|Description,
+      Ports = Name|Direction|Type|Description (grouped by interface).
+    - Register Map: link to the generated hdl/csr/<X>_csr.md (plus the
+      .hjson source and _csr.h header); never copy register tables here.
+    - Top-Level = sbi_* wrapper if present, else the entity used by the
+      `default` target, else the main entity (libraries: list packages).
+    - Write "This IP has no software-visible registers." / "No dedicated
+      synthesis target ..." instead of removing a section.
+    - Keep still-accurate hand-written content (ISA tables, results,
+      images) in "Design Notes"; drop anything not backed by the sources.
+    - Block diagram: doc/<NAME>.drawio (NAME = 4th field of the VLNV),
+      top entity box with generics on top, inputs left, outputs right,
+      bus interfaces as bold arrows, internal blocks colour-coded
+      (CSR yellow, FIFO/memory green, core logic blue, external grey).
+      Update it whenever ports/generics/sub-blocks change.
+    - Do not edit generated files (hdl/csr/*_csr.*) or the CI badge URL.
+-->
 [![CI](https://github.com/deuskane/asylum-system-mailbox/actions/workflows/ci.yml/badge.svg)](https://github.com/deuskane/asylum-system-mailbox/actions/workflows/ci.yml)
 
-**Table Of Contents**
-- **Introduction**: Short description of this repository and purpose.
-- **HDL Modules**: Per-module description, generics and ports.
-- **Register Map (CSR)**: CSR register list with links to registers and bitfields.
-- **Verification**: Notes about simulation and the Fusesoc core file.
+# asylum-system-mailbox
 
-**Introduction**
-- **Repository**: `asylum-system-mailbox` provides a small General Interrupt Controller (mailbox) implementation in VHDL.
-- **Location of sources**: HDL sources are in `hdl/`. CSR definitions and generated files are in `hdl/csr/`.
-- **Purpose**: Provide a lightweight mailbox and an SBI-compatible interface.
+**Two-channel byte mailbox (FIFOs looped back in hardware) with CSR access over the SBI bus.**
 
-**HDL Modules**
-- **Module folder**: `hdl/`
+VLNV: `asylum:system:mailbox:1.0.2`
 
-Below are the modules present in `hdl/` with their generics (if any) and port descriptions.
+## Table of Contents
 
-**sbi_mailbox** (`hdl/sbi_mailbox.vhd`)
-- **Description**: Top-level integration wrapper that instantiates the CSR register block (`mailbox_registers`). Exposes an SBI-compatible bus interface.
+1. [Introduction](#introduction)
+2. [Block Diagram](#block-diagram)
+3. [Top-Level](#top-level)
+4. [HDL Modules](#hdl-modules)
+5. [Register Map](#register-map)
+6. [Verification](#verification)
+7. [Synthesis](#synthesis)
+8. [Design Notes](#design-notes)
+9. [Directory Structure](#directory-structure)
+10. [Dependencies](#dependencies)
 
-Generics
+## Introduction
+
+This IP is the mailbox of the Asylum project. It provides two independent byte channels, `fifo0` and `fifo1`, that software agents sharing an SBI interconnect can use to exchange messages. Each channel is a regtool register of type `fifo` (`csr_fifo`) containing a software-to-hardware (SW2HW) FIFO and a hardware-to-software (HW2SW) FIFO. `sbi_mailbox` connects the hardware side of the SW2HW FIFO directly to the HW2SW FIFO of the same register, so a byte written at a channel address is read back, in FIFO order, at the same address. The IP is instantiated as an SBI target in `asylum-soc-picosoc` (`PicoSoC_user.vhd`).
+
+### Key Features
+
+- 2 independent 8-bit channels: `fifo0` at address `0x0`, `fifo1` at address `0x2`
+- Per-channel buffering split in two FIFOs with configurable depths (`FIFOn_DEPTH_TX` before the loopback, `FIFOn_DEPTH_RX` after it); capacity of a channel = `FIFOn_DEPTH_TX + FIFOn_DEPTH_RX`
+- Blocking read and blocking write: an access to an empty (read) or full (write) channel holds `sbi_tgt_o.ready` low until it can complete
+- No status register and no interrupt: the fill level is not visible to software
+- Instance name (`NAME`) reported in `sbi_tgt_o.info.name` (default `"mailbox"`)
+- CSR bank generated by regtool from [hdl/csr/mailbox.hjson](hdl/csr/mailbox.hjson)
+
+## Block Diagram
+
+Diagram: [doc/mailbox.drawio](doc/mailbox.drawio) (open with diagrams.net or the VS Code Draw.io extension).
+
+- The SBI bus accesses `mailbox_registers` (generated by regtool from [hdl/csr/mailbox.hjson](hdl/csr/mailbox.hjson)).
+- Each register `fifoN` is a `csr_fifo` instance: a software write pushes into the SW2HW FIFO (depth `FIFOn_DEPTH_TX`), a software read pops from the HW2SW FIFO (depth `FIFOn_DEPTH_RX`).
+- `sbi_mailbox` loops `sw2hw.fifoN.valid` / `sw2hw.fifoN.value` back to `hw2sw.fifoN.valid` / `hw2sw.fifoN.value`, and `sw2hw.fifoN.ready` (HW2SW FIFO ready) back to `hw2sw.fifoN.ready` (SW2HW FIFO pop): bytes move from one FIFO to the other without software intervention.
+- The two channels share nothing but the SBI port; the FIFO empty / full flags of the `sw2hw` record are not used.
+
+## Top-Level
+
+Top-level entity: **`sbi_mailbox`** ([hdl/sbi_mailbox.vhd](hdl/sbi_mailbox.vhd)), library `asylum`, component declared in `asylum.mailbox_pkg`.
+
+### Parameters
 
 | Name | Type | Default | Description |
 |------|------|---------|-------------|
-| *(none)* | | | This entity defines no generics |
+| `NAME` | string | `""` | Instance name, forwarded to the CSR block (`MODULE_NAME`, visible in `sbi_tgt_o.info.name`; `"mailbox"` when empty) |
+| `FIFO0_DEPTH_TX` | natural | *(none)* | Depth of the `fifo0` SW2HW FIFO (written by software, 0 = no FIFO) |
+| `FIFO0_DEPTH_RX` | natural | *(none)* | Depth of the `fifo0` HW2SW FIFO (read by software, 0 = no FIFO); `FIFO0_DEPTH_TX + FIFO0_DEPTH_RX` must be > 0 (assertion) |
+| `FIFO1_DEPTH_TX` | natural | *(none)* | Depth of the `fifo1` SW2HW FIFO (written by software, 0 = no FIFO) |
+| `FIFO1_DEPTH_RX` | natural | *(none)* | Depth of the `fifo1` HW2SW FIFO (read by software, 0 = no FIFO); `FIFO1_DEPTH_TX + FIFO1_DEPTH_RX` must be > 0 (assertion) |
 
-Ports
+### Ports
+
+#### Clock & Reset
 
 | Name | Direction | Type | Description |
 |------|-----------|------|-------------|
-| `clk_i` | in | `std_logic` | Clock input |
-| `arst_b_i` | in | `std_logic` | Asynchronous reset (active low) |
-| `sbi_ini_i` | in | `sbi_ini_t` | Bus initiator interface (SBI) |
-| `sbi_tgt_o` | out | `sbi_tgt_t` | Bus target interface (SBI) |
+| `clk_i` | in | std_logic | System clock |
+| `arst_b_i` | in | std_logic | Asynchronous reset, active low |
 
-**mailbox_pkg** (`hdl/mailbox_pkg.vhd`)
-- **Description**: Package declaring component interfaces and record/array types used by the mailbox family.
+#### Bus (SBI)
 
-**Register Map (CSR)**
-- **CSR folder**: `hdl/csr/`
-- **Primary files**: `hdl/csr/mailbox.hjson`, `hdl/csr/mailbox_csr.md`, `hdl/csr/mailbox_csr.vhd`, `hdl/csr/mailbox_csr.h`.
-- **Generated by**: The project `mailbox.core` uses the `regtool` generator (see `mailbox.core`) to produce CSR HDL and header artifacts from `hdl/csr/mailbox.hjson`.
+| Name | Direction | Type | Description |
+|------|-----------|------|-------------|
+| `sbi_ini_i` | in | sbi_ini_t | SBI request from the initiator (`cs`, `re`, `we`, `addr`, `wdata`) |
+| `sbi_tgt_o` | out | sbi_tgt_t | SBI response to the initiator (`ready`, `rdata`, `info`) |
+
+### Instantiation Example
+
+```vhdl
+library asylum;
+use     asylum.sbi_pkg.all;
+use     asylum.mailbox_pkg.all;
+
+  ins_mailbox : entity asylum.sbi_mailbox
+    generic map
+    ( NAME           => "MAILBOX0"
+     ,FIFO0_DEPTH_TX => 4
+     ,FIFO0_DEPTH_RX => 4
+     ,FIFO1_DEPTH_TX => 4
+     ,FIFO1_DEPTH_RX => 4
+    )
+    port map
+    ( clk_i     => clk
+     ,arst_b_i  => arst_b
+     ,sbi_ini_i => sbi_inis(MAILBOX_ID)  -- sbi_ini_t(addr(1 downto 0), wdata(7 downto 0))
+     ,sbi_tgt_o => sbi_tgts(MAILBOX_ID)  -- sbi_tgt_t(rdata(7 downto 0))
+    );
+```
+
+The CSR bank uses 2 address bits (`MAILBOX_ADDR_WIDTH = 2`) and 8-bit data (`MAILBOX_DATA_WIDTH = 8`), see `asylum.mailbox_csr_pkg`.
+
+## HDL Modules
+
+| File | Unit | Kind | Role |
+|------|------|------|------|
+| [hdl/mailbox_pkg.vhd](hdl/mailbox_pkg.vhd) | `mailbox_pkg` | package | Component declaration of `sbi_mailbox` |
+| [hdl/sbi_mailbox.vhd](hdl/sbi_mailbox.vhd) | `sbi_mailbox` | entity | Top-level: CSR bank + SW2HW to HW2SW loopback of both channels |
+| hdl/csr/mailbox_csr.vhd | `mailbox_registers` | entity | Generated CSR bank (regtool), two `csr_fifo` instances |
+| hdl/csr/mailbox_csr_pkg.vhd | `mailbox_csr_pkg` | package | Generated types (`mailbox_sw2hw_t`, `mailbox_hw2sw_t`), addresses (`MAILBOX_FIFO0`, `MAILBOX_FIFO1`), widths and component `mailbox_registers` |
+
+### mailbox_registers
+
+Generated by regtool; documented here because `sbi_mailbox` is only a thin wrapper around it.
+
+#### Parameters
+
+| Name | Type | Default | Description |
+|------|------|---------|-------------|
+| `MODULE_NAME` | string | `""` | Name returned in `sbi_tgt_o.info.name` (`"mailbox"` when empty) |
+| `FIFO0_DEPTH_TX` | natural | *(none)* | `DEPTH_SW2HW` of the `fifo0` `csr_fifo` |
+| `FIFO0_DEPTH_RX` | natural | *(none)* | `DEPTH_HW2SW` of the `fifo0` `csr_fifo` |
+| `FIFO1_DEPTH_TX` | natural | *(none)* | `DEPTH_SW2HW` of the `fifo1` `csr_fifo` |
+| `FIFO1_DEPTH_RX` | natural | *(none)* | `DEPTH_HW2SW` of the `fifo1` `csr_fifo` |
+
+#### Ports
+
+| Name | Direction | Type | Description |
+|------|-----------|------|-------------|
+| `clk_i` | in | std_logic | System clock |
+| `arst_b_i` | in | std_logic | Asynchronous reset, active low |
+| `sbi_ini_i` | in | sbi_ini_t | SBI request |
+| `sbi_tgt_o` | out | sbi_tgt_t | SBI response (`ready` low while a blocking access is pending) |
+| `sw2hw_o` | out | mailbox_sw2hw_t | Per channel: `valid`, `value(7:0)` (SW2HW FIFO output), `ready` (HW2SW FIFO input ready), `sw2hw_empty/full`, `hw2sw_empty/full` |
+| `hw2sw_i` | in | mailbox_hw2sw_t | Per channel: `valid`, `value(7:0)` (HW2SW FIFO input), `ready` (SW2HW FIFO pop) |
+
+## Register Map
+
+The register map is generated by regtool from [hdl/csr/mailbox.hjson](hdl/csr/mailbox.hjson):
+
+- Register documentation: **[hdl/csr/mailbox_csr.md](hdl/csr/mailbox_csr.md)**
+- C header: [hdl/csr/mailbox_csr.h](hdl/csr/mailbox_csr.h)
+
+Notes:
+
+- `fifo0` and `fifo1` are `fifo` registers with `BLOCKING_READ` and `BLOCKING_WRITE` set; their depths come from the `FIFOn_DEPTH_TX` / `FIFOn_DEPTH_RX` generics (hjson `parameters`).
+- The CSR bank is 8 bits wide with a 2-bit address; addresses `0x1` and `0x3` are unmapped (reads return 0, writes are ignored).
+
+## Verification
+
+### Testbenches
+
+| File | DUT | Description |
+|------|-----|-------------|
+| [sim/tb_mailbox.vhd](sim/tb_mailbox.vhd) | `sbi_mailbox` | UVVM testbench with the SBI VIP, depths set by the generics `FIFO0_DEPTH_TX`, `FIFO0_DEPTH_RX`, `FIFO1_DEPTH_TX`, `FIFO1_DEPTH_RX`. For each channel: T1 a read of the empty channel stalls, T2 fill to the capacity `DEPTH_TX + DEPTH_RX`, a write in the full channel stalls, read back in order, the channel is empty again, T3 write then immediate read (the blocking read completes when the byte has crossed the loopback), T4 200 random push / pop checked against a FIFO model. Then T5 independence of the channels, T6 unmapped addresses `0x1` / `0x3` (read 0 without stall, write ignored), T7 the asynchronous reset flushes both channels |
+
+A stalled access is checked by holding `cs` / `re` (or `we`) during 16 cycles and verifying that `ready` stays low; the testbench then releases the access. Completing the stalled access from "the other side" is not possible: the testbench is the only initiator and the blocked access occupies the single SBI port.
+
+### Targets
+
+| Target | Toplevel | Description |
+|--------|----------|-------------|
+| `default` | `sbi_mailbox` | HDL fileset + CSR generation (not a simulation) |
+| `sim_mailbox_4_4` | `tb_mailbox` | FIFO0 TX 4 / RX 4, FIFO1 TX 4 / RX 4 (configuration of `asylum-soc-picosoc`), 253 checks |
+| `sim_mailbox_depth1` | `tb_mailbox` | FIFO0 TX 1 / RX 1, FIFO1 TX 1 / RX 0 (single-word FIFOs, needs `asylum:component:fifo` >= 1.2.1), same test sequence |
+| `sim_mailbox_depth0` | `tb_mailbox` | FIFO0 TX 0 / RX 4, FIFO1 TX 2 / RX 0 (one FIFO bypassed per channel), 235 checks |
+| `sim_mailbox_2_8` | `tb_mailbox` | FIFO0 TX 2 / RX 2, FIFO1 TX 8 / RX 2, 247 checks |
+
+### How to Run
+
+The default tool is GHDL (`mk/defs.mk`: `TOOL ?= ghdl`, `TARGET ?= sim_mailbox_4_4`).
+
+```bash
+make help                    # variables, rules and target list (mk/targets.txt)
+make sim_mailbox_4_4         # run one target (log in log/)
+make nonreg_sim              # run every sim_* target
+make clean                   # remove build/ and log/
+```
+
+Equivalent FuseSoC command (the depths can be overridden on the command line):
+
+```bash
+fusesoc --cores-root . run --build-root build --target sim_mailbox_4_4 asylum:system:mailbox:1.0.2 --FIFO1_DEPTH_RX=8
+```
+
+CI ([.github/workflows/ci.yml](.github/workflows/ci.yml)) runs every `sim_*` target.
+
+## Synthesis
+
+No dedicated synthesis target. The HDL sources of the `default` target (`hdl/*.vhd` + generated CSR) contain no simulation-only code (no file I/O, no `translate_off` section) and are synthesizable. Resource usage is dominated by the four FIFOs (`fifo_sync` from `asylum:component:fifo`, instantiated by `csr_fifo` when a depth is non-zero).
+
+## Design Notes
+
+### Software Usage
+
+1. Agent A writes bytes to `fifo0` (address `0x0`); each write is accepted as long as the channel is not full.
+2. Agent B reads `fifo0`; bytes come out in the order they were written.
+3. `fifo1` (address `0x2`) is used the same way, typically for the opposite direction.
+
+Both registers are blocking: a read of an empty channel or a write to a full channel keeps `sbi_tgt_o.ready` low until the condition clears. Because the only way to fill or drain a channel is another access on the same SBI port, such an access stalls indefinitely; software must know how many bytes are pending (protocol-level counting, or a lock from [asylum-system-spinlock](https://github.com/deuskane/asylum-system-spinlock)) since no status register is provided.
+
+### FIFO Depths
+
+- `FIFOn_DEPTH_TX = 0`: the write goes straight through `csr_fifo` to the HW2SW FIFO (accepted when it has room).
+- `FIFOn_DEPTH_RX = 0`: the read takes the byte directly from the SW2HW FIFO output (stalls while it is empty).
+- `FIFOn_DEPTH_TX = 0` and `FIFOn_DEPTH_RX = 0`: the channel has no storage; a write would only complete during a simultaneous read, which cannot happen on a single SBI port. `sbi_mailbox` rejects this configuration with an assertion (severity failure) at elaboration.
+- Depths must be powers of 2 (`fifo_sync` pointer arithmetic). A depth of 1 requires `asylum:component:fifo` >= 1.2.1: older versions reported "not empty" right after reset with `DEPTH = 1`, so a read of the empty channel returned garbage instead of stalling (covered by `sim_mailbox_depth1`).
+
+## Directory Structure
+
+```
+asylum-system-mailbox/
+├── mailbox.core                # FuseSoC core (asylum:system:mailbox)
+├── Makefile                    # Common Asylum Makefile (FuseSoC wrapper)
+├── mk/
+│   ├── defs.mk                 # FILE_CORE, default TARGET and TOOL
+│   └── targets.txt             # Target list (generated from the .core)
+├── doc/
+│   └── mailbox.drawio          # Block diagram
+├── sim/
+│   └── tb_mailbox.vhd          # UVVM testbench
+├── hdl/
+│   ├── mailbox_pkg.vhd
+│   ├── sbi_mailbox.vhd
+│   └── csr/
+│       ├── mailbox.hjson       # Register description (source)
+│       ├── mailbox_csr.vhd     # Generated
+│       ├── mailbox_csr_pkg.vhd # Generated
+│       ├── mailbox_csr.md      # Generated
+│       └── mailbox_csr.h       # Generated
+└── .github/workflows/ci.yml    # CI (one job per sim_* target, generated by make ci_generate)
+```
+
+## Dependencies
+
+| Core | Used by (fileset) | Purpose |
+|------|-------------------|---------|
+| `asylum:utils:generators` | `hdl` | regtool generator and CSR building blocks (`csr_fifo`, which pulls `asylum:component:fifo`) |
+| `asylum:utils:pkg` | `hdl` | Common packages (`sbi_pkg`, `logic_pkg`) |
+| `asylum:target:techmap` | `hdl` | `techmap_pkg` (referenced by a `use` clause in `sbi_mailbox.vhd`; no cell is instantiated) |
+| `bitvis:verification:uvvm` | `sim` | UVVM utility library and SBI VIP (`bitvis_vip_sbi`) |

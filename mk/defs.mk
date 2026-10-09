@@ -1,3 +1,3 @@
 FILE_CORE	?= mailbox.core
-TARGET          ?=
-TOOL		?=
+TARGET          ?= sim_mailbox_4_4
+TOOL		?= ghdl

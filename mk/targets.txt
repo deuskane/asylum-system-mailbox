@@ -1,2 +1,6 @@
-default : Default Target
+default            : Default Target
+sim_mailbox_2_8    : Simulation of sbi_mailbox with VIP - FIFO0 TX 2 / RX 2, FIFO1 TX 8 / RX 2
+sim_mailbox_4_4    : Simulation of sbi_mailbox with VIP - FIFO0 TX 4 / RX 4, FIFO1 TX 4 / RX 4 (PicoSoC configuration)
+sim_mailbox_depth0 : Simulation of sbi_mailbox with VIP - FIFO0 TX 0 / RX 4, FIFO1 TX 2 / RX 0 (one FIFO bypassed per channel)
+sim_mailbox_depth1 : Simulation of sbi_mailbox with VIP - FIFO0 TX 1 / RX 1, FIFO1 TX 1 / RX 0 (single-word FIFOs)
 

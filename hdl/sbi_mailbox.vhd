@@ -17,6 +17,8 @@
 -- Revisions  :
 -- Date        Version  Author  Description
 -- 2025-07-04  0.1      mrosiere Created
+-- 2026-10-05  0.2      mrosiere Add assertions : a channel with both FIFO depths
+--                               equal to 0 is unusable (every access stalls)
 -------------------------------------------------------------------------------
 
 library IEEE;
@@ -57,6 +59,21 @@ architecture rtl of sbi_mailbox is
   signal   hw2sw                  : mailbox_hw2sw_t;
 
 begin  -- architecture rtl
+
+  -----------------------------------------------------------------------------
+  -- Parameters checks
+  -- With DEPTH_TX = DEPTH_RX = 0 the channel is a combinational loop between
+  -- the software write and the software read of the same SBI port : a write
+  -- waits for a simultaneous read and a read waits for a simultaneous write,
+  -- so every access stalls forever.
+  -----------------------------------------------------------------------------
+  assert FIFO0_DEPTH_TX + FIFO0_DEPTH_RX > 0
+    report "sbi_mailbox : FIFO0_DEPTH_TX and FIFO0_DEPTH_RX are both 0, channel fifo0 is unusable"
+    severity failure;
+
+  assert FIFO1_DEPTH_TX + FIFO1_DEPTH_RX > 0
+    report "sbi_mailbox : FIFO1_DEPTH_TX and FIFO1_DEPTH_RX are both 0, channel fifo1 is unusable"
+    severity failure;
 
   ins_csr : mailbox_registers
   generic map(
