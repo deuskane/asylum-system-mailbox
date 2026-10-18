@@ -25,6 +25,16 @@
 	    desc         : "FIFO1 Depth of FIFO RX (HW2SW)"
 	    type         : "natural"
 	}
+	{
+	    name         : "BLOCKING_READ"
+	    desc         : "True : a read of an empty channel waits for a data (sbi ready low), False : it completes at once (data not valid, nothing popped)"
+	    type         : "boolean"
+	}
+	{
+	    name         : "BLOCKING_WRITE"
+	    desc         : "True : a write in a full channel waits for a free slot (sbi ready low), False : it completes at once (data dropped)"
+	    type         : "boolean"
+	}
     ]
 
     registers : [
@@ -38,8 +48,8 @@
             hwtype       : "fifo",
 
             params: {
-                BLOCKING_READ  : "True", 
-                BLOCKING_WRITE : "True",
+                BLOCKING_READ  : "BLOCKING_READ", 
+                BLOCKING_WRITE : "BLOCKING_WRITE",
 		        DEPTH_SW2HW    : "FIFO0_DEPTH_TX"
 		        DEPTH_HW2SW    : "FIFO0_DEPTH_RX"
             }
@@ -53,6 +63,27 @@
             ]
         },
 	{
+            name         : "status0",
+            address      : "x1",
+            desc         : "FIFO0 status (read only, writes are ignored)",
+            swaccess     : "rw",
+            hwaccess     : "wo",
+            hwtype       : "ext",
+
+            fields: [
+                {
+                    name: "empty",
+                    bits: "0:0",
+                    desc: "1: no data to read in fifo0, a read stalls (BLOCKING_READ) or returns a non valid data"
+                },
+                {
+                    name: "full",
+                    bits: "1:1",
+                    desc: "1: no free slot in fifo0, a write stalls (BLOCKING_WRITE) or is dropped"
+                },
+            ]
+        },
+	{
             name         : "fifo1",
             address      : "x2",
             desc         : "FIFO1",
@@ -61,8 +92,8 @@
             hwtype       : "fifo",
 
             params: {
-                BLOCKING_READ  : "True", 
-                BLOCKING_WRITE : "True",
+                BLOCKING_READ  : "BLOCKING_READ", 
+                BLOCKING_WRITE : "BLOCKING_WRITE",
 		        DEPTH_SW2HW    : "FIFO1_DEPTH_TX"
 		        DEPTH_HW2SW    : "FIFO1_DEPTH_RX"
             }
@@ -72,6 +103,27 @@
                     name: "value",
                     bits: "7:0",
                     desc: "FIFO1 : Data TX or Data RX"
+                },
+            ]
+        },
+	{
+            name         : "status1",
+            address      : "x3",
+            desc         : "FIFO1 status (read only, writes are ignored)",
+            swaccess     : "rw",
+            hwaccess     : "wo",
+            hwtype       : "ext",
+
+            fields: [
+                {
+                    name: "empty",
+                    bits: "0:0",
+                    desc: "1: no data to read in fifo1, a read stalls (BLOCKING_READ) or returns a non valid data"
+                },
+                {
+                    name: "full",
+                    bits: "1:1",
+                    desc: "1: no free slot in fifo1, a write stalls (BLOCKING_WRITE) or is dropped"
                 },
             ]
         },

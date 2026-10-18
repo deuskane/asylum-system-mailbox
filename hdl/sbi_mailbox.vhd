@@ -41,6 +41,8 @@ entity sbi_mailbox is
    ;FIFO0_DEPTH_RX   : natural -- FIFO0 Depth of FIFO RX (HW2SW)
    ;FIFO1_DEPTH_TX   : natural -- FIFO1 Depth of FIFO TX (SW2HW)
    ;FIFO1_DEPTH_RX   : natural -- FIFO1 Depth of FIFO RX (HW2SW)
+   ;BLOCKING_READ    : boolean := true -- Read  of an empty channel waits for a data
+   ;BLOCKING_WRITE   : boolean := true -- Write in a full   channel waits for a free slot
   );
   port   (
     clk_i            : in  std_logic;
@@ -82,6 +84,8 @@ begin  -- architecture rtl
    ,FIFO0_DEPTH_RX => FIFO0_DEPTH_RX
    ,FIFO1_DEPTH_TX => FIFO1_DEPTH_TX
    ,FIFO1_DEPTH_RX => FIFO1_DEPTH_RX
+   ,BLOCKING_READ  => BLOCKING_READ
+   ,BLOCKING_WRITE => BLOCKING_WRITE
     )
   port map(
     clk_i     => clk_i    
@@ -99,5 +103,22 @@ begin  -- architecture rtl
   hw2sw.fifo1.valid <= sw2hw.fifo1.valid;
   hw2sw.fifo1.ready <= sw2hw.fifo1.ready;
   hw2sw.fifo1.value <= sw2hw.fifo1.value;
+
+  -----------------------------------------------------------------------------
+  -- Status registers (combinational, csr_ext)
+  -- empty : the HW2SW side of the channel is empty, a read stalls
+  --         (BLOCKING_READ) or returns a non valid data
+  -- full  : the SW2HW side of the channel is full, a write stalls
+  --         (BLOCKING_WRITE) or is dropped
+  -- These are the flags of the csr_fifo busy signals, also valid with a
+  -- depth of 0. Software polls them to never stall the interconnect.
+  -----------------------------------------------------------------------------
+  hw2sw.status0.we       <= '1';
+  hw2sw.status0.empty(0) <= sw2hw.fifo0.hw2sw_empty;
+  hw2sw.status0.full (0) <= sw2hw.fifo0.sw2hw_full;
+
+  hw2sw.status1.we       <= '1';
+  hw2sw.status1.empty(0) <= sw2hw.fifo1.hw2sw_empty;
+  hw2sw.status1.full (0) <= sw2hw.fifo1.sw2hw_full;
   
 end architecture rtl;

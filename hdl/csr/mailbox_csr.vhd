@@ -24,6 +24,8 @@ entity mailbox_registers is
    ;FIFO0_DEPTH_RX : natural -- FIFO0 Depth of FIFO RX (HW2SW)
    ;FIFO1_DEPTH_TX : natural -- FIFO1 Depth of FIFO TX (SW2HW)
    ;FIFO1_DEPTH_RX : natural -- FIFO1 Depth of FIFO RX (HW2SW)
+   ;BLOCKING_READ : boolean -- True : a read of an empty channel waits for a data (sbi ready low), False : it completes at once (data not valid, nothing popped)
+   ;BLOCKING_WRITE : boolean -- True : a write in a full channel waits for a free slot (sbi ready low), False : it completes at once (data dropped)
   );
   port (
     -- Clock and Reset
@@ -76,6 +78,29 @@ architecture rtl of mailbox_registers is
   signal   fifo0_rdata_hw  : std_logic_vector(8-1 downto 0);
   signal   fifo0_rbusy     : std_logic;
 
+  function INIT_status0
+    return std_logic_vector is
+    variable tmp : std_logic_vector(2-1 downto 0);
+  begin  -- function INIT_status0
+    tmp(0 downto 0) := "0"; -- empty
+    tmp(1 downto 1) := "0"; -- full
+    return tmp;
+  end function INIT_status0;
+
+  signal   status0_wcs       : std_logic;
+  signal   status0_we        : std_logic;
+  signal   status0_wdata     : std_logic_vector(8-1 downto 0);
+  signal   status0_wdata_sw  : std_logic_vector(2-1 downto 0);
+  signal   status0_wdata_hw  : std_logic_vector(2-1 downto 0);
+  signal   status0_wbusy     : std_logic;
+
+  signal   status0_rcs       : std_logic;
+  signal   status0_re        : std_logic;
+  signal   status0_rdata     : std_logic_vector(8-1 downto 0);
+  signal   status0_rdata_sw  : std_logic_vector(2-1 downto 0);
+  signal   status0_rdata_hw  : std_logic_vector(2-1 downto 0);
+  signal   status0_rbusy     : std_logic;
+
   function INIT_fifo1
     return std_logic_vector is
     variable tmp : std_logic_vector(8-1 downto 0);
@@ -97,6 +122,29 @@ architecture rtl of mailbox_registers is
   signal   fifo1_rdata_sw  : std_logic_vector(8-1 downto 0);
   signal   fifo1_rdata_hw  : std_logic_vector(8-1 downto 0);
   signal   fifo1_rbusy     : std_logic;
+
+  function INIT_status1
+    return std_logic_vector is
+    variable tmp : std_logic_vector(2-1 downto 0);
+  begin  -- function INIT_status1
+    tmp(0 downto 0) := "0"; -- empty
+    tmp(1 downto 1) := "0"; -- full
+    return tmp;
+  end function INIT_status1;
+
+  signal   status1_wcs       : std_logic;
+  signal   status1_we        : std_logic;
+  signal   status1_wdata     : std_logic_vector(8-1 downto 0);
+  signal   status1_wdata_sw  : std_logic_vector(2-1 downto 0);
+  signal   status1_wdata_hw  : std_logic_vector(2-1 downto 0);
+  signal   status1_wbusy     : std_logic;
+
+  signal   status1_rcs       : std_logic;
+  signal   status1_re        : std_logic;
+  signal   status1_rdata     : std_logic_vector(8-1 downto 0);
+  signal   status1_rdata_sw  : std_logic_vector(2-1 downto 0);
+  signal   status1_rdata_hw  : std_logic_vector(2-1 downto 0);
+  signal   status1_rbusy     : std_logic;
 
 begin  -- architecture rtl
 
@@ -157,8 +205,8 @@ begin  -- architecture rtl
     ins_fifo0 : csr_fifo
       generic map
         (WIDTH         => 8
-        ,BLOCKING_READ => True
-        ,BLOCKING_WRITE => True
+        ,BLOCKING_READ => BLOCKING_READ
+        ,BLOCKING_WRITE => BLOCKING_WRITE
         ,DEPTH_SW2HW => FIFO0_DEPTH_TX
         ,DEPTH_HW2SW => FIFO0_DEPTH_RX
         )
@@ -196,6 +244,78 @@ begin  -- architecture rtl
     sw2hw_o.fifo0.ready <= '0';
     sw2hw_o.fifo0.valid <= '0';
   end generate gen_fifo0_b;
+
+  gen_status0: if (True)
+  generate
+  --==================================
+  -- Register    : status0
+  -- Description : FIFO0 status (read only, writes are ignored)
+  -- Address     : 0x1
+  -- Width       : 2
+  -- Sw Access   : rw
+  -- Hw Access   : wo
+  -- Hw Type     : ext
+  --==================================
+  --==================================
+  -- Field       : empty
+  -- Description : 1: no data to read in fifo0, a read stalls (BLOCKING_READ) or returns a non valid data
+  -- Width       : 1
+  --==================================
+
+  --==================================
+  -- Field       : full
+  -- Description : 1: no free slot in fifo0, a write stalls (BLOCKING_WRITE) or is dropped
+  -- Width       : 1
+  --==================================
+
+
+    status0_rcs     <= '1' when (sig_raddr = mailbox_STATUS0) else '0';
+    status0_re      <= sig_rcs and sig_re and status0_rcs;
+    status0_rdata   <= (
+      0 => status0_rdata_sw(0), -- empty(0)
+      1 => status0_rdata_sw(1), -- full(0)
+      others => '0');
+
+    status0_wcs     <= '1' when       (sig_waddr = mailbox_STATUS0)   else '0';
+    status0_we      <= sig_wcs and sig_we and status0_wcs;
+    status0_wdata   <= sig_wdata;
+    status0_wdata_sw(0 downto 0) <= status0_wdata(0 downto 0); -- empty
+    status0_wdata_sw(1 downto 1) <= status0_wdata(1 downto 1); -- full
+    status0_wdata_hw(0 downto 0) <= hw2sw_i.status0.empty; -- empty
+    status0_wdata_hw(1 downto 1) <= hw2sw_i.status0.full; -- full
+
+    ins_status0 : csr_ext
+      generic map
+        (WIDTH         => 2
+        )
+      port map
+        (clk_i         => clk_i
+        ,arst_b_i      => arst_b_i
+        ,sw_wd_i       => status0_wdata_sw
+        ,sw_rd_o       => status0_rdata_sw
+        ,sw_we_i       => status0_we
+        ,sw_re_i       => status0_re
+        ,sw_rbusy_o    => status0_rbusy
+        ,sw_wbusy_o    => status0_wbusy
+        ,hw_wd_i       => status0_wdata_hw
+        ,hw_rd_o       => open
+        ,hw_we_i       => hw2sw_i.status0.we
+        ,hw_sw_re_o    => sw2hw_o.status0.re
+        ,hw_sw_we_o    => sw2hw_o.status0.we
+        );
+
+  end generate gen_status0;
+
+  gen_status0_b: if not (True)
+  generate
+    status0_rcs     <= '0';
+    status0_rbusy   <= '0';
+    status0_rdata   <= (others => '0');
+    status0_wcs      <= '0';
+    status0_wbusy    <= '0';
+    sw2hw_o.status0.re <= '0';
+    sw2hw_o.status0.we <= '0';
+  end generate gen_status0_b;
 
   gen_fifo1: if (True)
   generate
@@ -238,8 +358,8 @@ begin  -- architecture rtl
     ins_fifo1 : csr_fifo
       generic map
         (WIDTH         => 8
-        ,BLOCKING_READ => True
-        ,BLOCKING_WRITE => True
+        ,BLOCKING_READ => BLOCKING_READ
+        ,BLOCKING_WRITE => BLOCKING_WRITE
         ,DEPTH_SW2HW => FIFO1_DEPTH_TX
         ,DEPTH_HW2SW => FIFO1_DEPTH_RX
         )
@@ -278,17 +398,95 @@ begin  -- architecture rtl
     sw2hw_o.fifo1.valid <= '0';
   end generate gen_fifo1_b;
 
+  gen_status1: if (True)
+  generate
+  --==================================
+  -- Register    : status1
+  -- Description : FIFO1 status (read only, writes are ignored)
+  -- Address     : 0x3
+  -- Width       : 2
+  -- Sw Access   : rw
+  -- Hw Access   : wo
+  -- Hw Type     : ext
+  --==================================
+  --==================================
+  -- Field       : empty
+  -- Description : 1: no data to read in fifo1, a read stalls (BLOCKING_READ) or returns a non valid data
+  -- Width       : 1
+  --==================================
+
+  --==================================
+  -- Field       : full
+  -- Description : 1: no free slot in fifo1, a write stalls (BLOCKING_WRITE) or is dropped
+  -- Width       : 1
+  --==================================
+
+
+    status1_rcs     <= '1' when (sig_raddr = mailbox_STATUS1) else '0';
+    status1_re      <= sig_rcs and sig_re and status1_rcs;
+    status1_rdata   <= (
+      0 => status1_rdata_sw(0), -- empty(0)
+      1 => status1_rdata_sw(1), -- full(0)
+      others => '0');
+
+    status1_wcs     <= '1' when       (sig_waddr = mailbox_STATUS1)   else '0';
+    status1_we      <= sig_wcs and sig_we and status1_wcs;
+    status1_wdata   <= sig_wdata;
+    status1_wdata_sw(0 downto 0) <= status1_wdata(0 downto 0); -- empty
+    status1_wdata_sw(1 downto 1) <= status1_wdata(1 downto 1); -- full
+    status1_wdata_hw(0 downto 0) <= hw2sw_i.status1.empty; -- empty
+    status1_wdata_hw(1 downto 1) <= hw2sw_i.status1.full; -- full
+
+    ins_status1 : csr_ext
+      generic map
+        (WIDTH         => 2
+        )
+      port map
+        (clk_i         => clk_i
+        ,arst_b_i      => arst_b_i
+        ,sw_wd_i       => status1_wdata_sw
+        ,sw_rd_o       => status1_rdata_sw
+        ,sw_we_i       => status1_we
+        ,sw_re_i       => status1_re
+        ,sw_rbusy_o    => status1_rbusy
+        ,sw_wbusy_o    => status1_wbusy
+        ,hw_wd_i       => status1_wdata_hw
+        ,hw_rd_o       => open
+        ,hw_we_i       => hw2sw_i.status1.we
+        ,hw_sw_re_o    => sw2hw_o.status1.re
+        ,hw_sw_we_o    => sw2hw_o.status1.we
+        );
+
+  end generate gen_status1;
+
+  gen_status1_b: if not (True)
+  generate
+    status1_rcs     <= '0';
+    status1_rbusy   <= '0';
+    status1_rdata   <= (others => '0');
+    status1_wcs      <= '0';
+    status1_wbusy    <= '0';
+    sw2hw_o.status1.re <= '0';
+    sw2hw_o.status1.we <= '0';
+  end generate gen_status1_b;
+
   sig_wbusy <= 
     fifo0_wbusy when fifo0_wcs = '1' else
+    status0_wbusy when status0_wcs = '1' else
     fifo1_wbusy when fifo1_wcs = '1' else
+    status1_wbusy when status1_wcs = '1' else
     '0'; -- Bad Address, no busy
   sig_rbusy <= 
     fifo0_rbusy when fifo0_rcs = '1' else
+    status0_rbusy when status0_rcs = '1' else
     fifo1_rbusy when fifo1_rcs = '1' else
+    status1_rbusy when status1_rcs = '1' else
     '0'; -- Bad Address, no busy
   sig_rdata <= 
     fifo0_rdata when fifo0_rcs = '1' else
+    status0_rdata when status0_rcs = '1' else
     fifo1_rdata when fifo1_rcs = '1' else
+    status1_rdata when status1_rcs = '1' else
     (others => '0'); -- Bad Address, return 0
 
   gen_tgt_info_name : if MODULE_NAME = ""
