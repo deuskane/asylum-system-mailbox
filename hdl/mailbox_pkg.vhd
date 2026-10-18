@@ -35,6 +35,8 @@ component sbi_mailbox is
    ;FIFO0_DEPTH_RX   : natural -- FIFO0 Depth of FIFO RX (HW2SW)
    ;FIFO1_DEPTH_TX   : natural -- FIFO1 Depth of FIFO TX (SW2HW)
    ;FIFO1_DEPTH_RX   : natural -- FIFO1 Depth of FIFO RX (HW2SW)
+   ;BLOCKING_READ    : boolean := true -- Read  of an empty channel waits for a data
+   ;BLOCKING_WRITE   : boolean := true -- Write in a full   channel waits for a free slot
   );
   port   (
     clk_i            : in  std_logic;

@@ -47,6 +47,27 @@ package mailbox_csr_pkg is
   end record mailbox_fifo0_hw2sw_t;
 
   --==================================
+  -- Register    : status0
+  -- Description : FIFO0 status (read only, writes are ignored). One read wait state : the value reflects the access just before
+  -- Address     : 0x1
+  -- Width       : 2
+  -- Sw Access   : ro
+  -- Hw Access   : wo
+  -- Hw Type     : reg
+  --==================================
+  constant MAILBOX_STATUS0 : unsigned(MAILBOX_ADDR_WIDTH-1 downto 0) := "01";
+
+  type mailbox_status0_sw2hw_t is record
+    re : std_logic; -- Software read
+  end record mailbox_status0_sw2hw_t;
+
+  type mailbox_status0_hw2sw_t is record
+    we    : std_logic; -- Hardware write
+    empty : std_logic_vector(0 downto 0); -- 1: no data to read in fifo0, a read stalls (BLOCKING_READ) or returns a non valid data
+    full  : std_logic_vector(0 downto 0); -- 1: no free slot in fifo0, a write stalls (BLOCKING_WRITE) or is dropped
+  end record mailbox_status0_hw2sw_t;
+
+  --==================================
   -- Register    : fifo1
   -- Description : FIFO1
   -- Address     : 0x2
@@ -74,18 +95,43 @@ package mailbox_csr_pkg is
   end record mailbox_fifo1_hw2sw_t;
 
   --==================================
+  -- Register    : status1
+  -- Description : FIFO1 status (read only, writes are ignored). One read wait state : the value reflects the access just before
+  -- Address     : 0x3
+  -- Width       : 2
+  -- Sw Access   : ro
+  -- Hw Access   : wo
+  -- Hw Type     : reg
+  --==================================
+  constant MAILBOX_STATUS1 : unsigned(MAILBOX_ADDR_WIDTH-1 downto 0) := "11";
+
+  type mailbox_status1_sw2hw_t is record
+    re : std_logic; -- Software read
+  end record mailbox_status1_sw2hw_t;
+
+  type mailbox_status1_hw2sw_t is record
+    we    : std_logic; -- Hardware write
+    empty : std_logic_vector(0 downto 0); -- 1: no data to read in fifo1, a read stalls (BLOCKING_READ) or returns a non valid data
+    full  : std_logic_vector(0 downto 0); -- 1: no free slot in fifo1, a write stalls (BLOCKING_WRITE) or is dropped
+  end record mailbox_status1_hw2sw_t;
+
+  --==================================
   -- Structure mailbox_t
   --==================================
   -- Software to hardware
   type mailbox_sw2hw_t is record
-    fifo0 : mailbox_fifo0_sw2hw_t;
-    fifo1 : mailbox_fifo1_sw2hw_t;
+    fifo0   : mailbox_fifo0_sw2hw_t;
+    status0 : mailbox_status0_sw2hw_t;
+    fifo1   : mailbox_fifo1_sw2hw_t;
+    status1 : mailbox_status1_sw2hw_t;
   end record mailbox_sw2hw_t;
 
   -- Hardware to software
   type mailbox_hw2sw_t is record
-    fifo0 : mailbox_fifo0_hw2sw_t;
-    fifo1 : mailbox_fifo1_hw2sw_t;
+    fifo0   : mailbox_fifo0_hw2sw_t;
+    status0 : mailbox_status0_hw2sw_t;
+    fifo1   : mailbox_fifo1_hw2sw_t;
+    status1 : mailbox_status1_hw2sw_t;
   end record mailbox_hw2sw_t;
 
   --==================================
@@ -98,6 +144,8 @@ package mailbox_csr_pkg is
      ;FIFO0_DEPTH_RX : natural -- FIFO0 Depth of FIFO RX (HW2SW)
      ;FIFO1_DEPTH_TX : natural -- FIFO1 Depth of FIFO TX (SW2HW)
      ;FIFO1_DEPTH_RX : natural -- FIFO1 Depth of FIFO RX (HW2SW)
+     ;BLOCKING_READ  : boolean -- True : a read of an empty channel waits for a data (sbi ready low), False : it completes at once (data not valid, nothing popped)
+     ;BLOCKING_WRITE : boolean -- True : a write in a full channel waits for a free slot (sbi ready low), False : it completes at once (data dropped)
     );
     port (
       -- Clock and Reset
