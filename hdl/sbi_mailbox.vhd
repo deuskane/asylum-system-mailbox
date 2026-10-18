@@ -29,6 +29,7 @@ use     std.textio.all;
 
 library asylum;
 use     asylum.logic_pkg.all;
+use     asylum.math_pkg.all;
 use     asylum.sbi_pkg.all;
 use     asylum.mailbox_pkg.all;
 use     asylum.mailbox_csr_pkg.all;
@@ -54,6 +55,26 @@ entity sbi_mailbox is
 end entity sbi_mailbox;
 
 architecture rtl of sbi_mailbox is
+
+  -----------------------------------------------------------------------------
+  -- A FIFO depth must be 0 (no FIFO) or a power of 2 : fifo_sync sizes its
+  -- pointers with clog2(DEPTH) and ram_1r1w its address with log2(DEPTH).
+  -- The check is done in constant declarations, i.e. at elaboration and
+  -- before the FIFO instances, which would only report a port width mismatch.
+  -----------------------------------------------------------------------------
+  function check_depth (constant generic_name : in string;
+                        constant depth        : in natural) return boolean is
+  begin
+    assert depth = 0 or is_pow2(depth)
+      report "sbi_mailbox : "&generic_name&" = "&integer'image(depth)&" must be 0 or a power of 2"
+      severity failure;
+    return depth = 0 or is_pow2(depth);
+  end function check_depth;
+
+  constant FIFO0_DEPTH_TX_OK      : boolean := check_depth("FIFO0_DEPTH_TX", FIFO0_DEPTH_TX);
+  constant FIFO0_DEPTH_RX_OK      : boolean := check_depth("FIFO0_DEPTH_RX", FIFO0_DEPTH_RX);
+  constant FIFO1_DEPTH_TX_OK      : boolean := check_depth("FIFO1_DEPTH_TX", FIFO1_DEPTH_TX);
+  constant FIFO1_DEPTH_RX_OK      : boolean := check_depth("FIFO1_DEPTH_RX", FIFO1_DEPTH_RX);
 
   signal   sw2hw                  : mailbox_sw2hw_t;
   signal   hw2sw                  : mailbox_hw2sw_t;

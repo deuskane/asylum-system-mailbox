@@ -86,10 +86,10 @@ Top-level entity: **`sbi_mailbox`** ([hdl/sbi_mailbox.vhd](hdl/sbi_mailbox.vhd))
 | Name | Type | Default | Description |
 |------|------|---------|-------------|
 | `NAME` | string | `""` | Instance name, forwarded to the CSR block (`MODULE_NAME`, visible in `sbi_tgt_o.info.name`; `"mailbox"` when empty) |
-| `FIFO0_DEPTH_TX` | natural | *(none)* | Depth of the `fifo0` SW2HW FIFO (written by software, 0 = no FIFO) |
-| `FIFO0_DEPTH_RX` | natural | *(none)* | Depth of the `fifo0` HW2SW FIFO (read by software, 0 = no FIFO); `FIFO0_DEPTH_TX + FIFO0_DEPTH_RX` must be > 0 (assertion) |
-| `FIFO1_DEPTH_TX` | natural | *(none)* | Depth of the `fifo1` SW2HW FIFO (written by software, 0 = no FIFO) |
-| `FIFO1_DEPTH_RX` | natural | *(none)* | Depth of the `fifo1` HW2SW FIFO (read by software, 0 = no FIFO); `FIFO1_DEPTH_TX + FIFO1_DEPTH_RX` must be > 0 (assertion) |
+| `FIFO0_DEPTH_TX` | natural | *(none)* | Depth of the `fifo0` SW2HW FIFO (written by software, 0 = no FIFO, else a power of 2: elaboration assertion) |
+| `FIFO0_DEPTH_RX` | natural | *(none)* | Depth of the `fifo0` HW2SW FIFO (read by software, 0 = no FIFO, else a power of 2: elaboration assertion); `FIFO0_DEPTH_TX + FIFO0_DEPTH_RX` must be > 0 (assertion) |
+| `FIFO1_DEPTH_TX` | natural | *(none)* | Depth of the `fifo1` SW2HW FIFO (written by software, 0 = no FIFO, else a power of 2: elaboration assertion) |
+| `FIFO1_DEPTH_RX` | natural | *(none)* | Depth of the `fifo1` HW2SW FIFO (read by software, 0 = no FIFO, else a power of 2: elaboration assertion); `FIFO1_DEPTH_TX + FIFO1_DEPTH_RX` must be > 0 (assertion) |
 
 ### Ports
 
@@ -236,7 +236,7 @@ Both registers are blocking: a read of an empty channel or a write to a full cha
 - `FIFOn_DEPTH_TX = 0`: the write goes straight through `csr_fifo` to the HW2SW FIFO (accepted when it has room).
 - `FIFOn_DEPTH_RX = 0`: the read takes the byte directly from the SW2HW FIFO output (stalls while it is empty).
 - `FIFOn_DEPTH_TX = 0` and `FIFOn_DEPTH_RX = 0`: the channel has no storage; a write would only complete during a simultaneous read, which cannot happen on a single SBI port. `sbi_mailbox` rejects this configuration with an assertion (severity failure) at elaboration.
-- Depths must be powers of 2 (`fifo_sync` pointer arithmetic). A depth of 1 requires `asylum:component:fifo` >= 1.2.1: older versions reported "not empty" right after reset with `DEPTH = 1`, so a read of the empty channel returned garbage instead of stalling (covered by `sim_mailbox_depth1`).
+- Depths must be 0 or powers of 2 (`fifo_sync` sizes its pointers with `clog2(DEPTH)`, `ram_1r1w` its address with `log2(DEPTH)`). `sbi_mailbox` checks every depth in a constant declaration (function `check_depth`, severity failure), so the error is reported at elaboration with the generic name, before the FIFO instances would fail with a port width mismatch. A depth of 1 requires `asylum:component:fifo` >= 1.2.1: older versions reported "not empty" right after reset with `DEPTH = 1`, so a read of the empty channel returned garbage instead of stalling (covered by `sim_mailbox_depth1`).
 
 ## Directory Structure
 
