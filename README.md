@@ -197,6 +197,8 @@ A stalled access is checked by holding `cs` / `re` (or `we`) during 16 cycles an
 | `sim_mailbox_depth1` | `tb_mailbox` | FIFO0 TX 1 / RX 1, FIFO1 TX 1 / RX 0 (single-word FIFOs, needs `asylum:component:fifo` >= 1.2.1), same test sequence |
 | `sim_mailbox_depth0` | `tb_mailbox` | FIFO0 TX 0 / RX 4, FIFO1 TX 2 / RX 0 (one FIFO bypassed per channel), 235 checks |
 | `sim_mailbox_2_8` | `tb_mailbox` | FIFO0 TX 2 / RX 2, FIFO1 TX 8 / RX 2, 247 checks |
+| `lint_ghdl` | `sbi_mailbox_synth_top` | Lint: GHDL `-Wall` analysis and elaboration (empty simulation) of `sbi_mailbox` in a wrapper with flat SBI ports (`syn/ghdl/sbi_mailbox_synth_top.vhd`, depths 4 by default) |
+| `lint_ghdl_synth` | `sbi_mailbox_synth_top` | Synthesis check: `lint_ghdl`, then `ghdl --synth -Wall` of 4 configurations (`syn/ghdl/ghdl_synth.sh`: the depths of the 4 `sim_mailbox_*` targets, 4/4/4/4 (PicoSoC), 0/4/2/0, 2/2/8/2, 1/1/1/0), fails on a synthesis error or an inferred latch |
 
 ### How to Run
 
@@ -206,6 +208,8 @@ The default tool is GHDL (`mk/defs.mk`: `TOOL ?= ghdl`, `TARGET ?= sim_mailbox_4
 make help                    # variables, rules and target list (mk/targets.txt)
 make sim_mailbox_4_4         # run one target (log in log/)
 make nonreg_sim              # run every sim_* target
+make lint_ghdl               # GHDL -Wall lint (make nonreg_lint: every lint_* target)
+make lint_ghdl_synth         # GHDL -Wall lint + ghdl --synth -Wall check
 make clean                   # remove build/ and log/
 ```
 
@@ -219,7 +223,7 @@ CI ([.github/workflows/ci.yml](.github/workflows/ci.yml)) runs every `sim_*` tar
 
 ## Synthesis
 
-No dedicated synthesis target. The HDL sources of the `default` target (`hdl/*.vhd` + generated CSR) contain no simulation-only code (no file I/O, no `translate_off` section) and are synthesizable. Resource usage is dominated by the four FIFOs (`fifo_sync` from `asylum:component:fifo`, instantiated by `csr_fifo` when a depth is non-zero).
+No vendor synthesis target (`lint_ghdl_synth` checks the RTL with `ghdl --synth`, see [Targets](#targets)). The HDL sources of the `default` target (`hdl/*.vhd` + generated CSR) contain no simulation-only code (no file I/O, no `translate_off` section) and are synthesizable. Resource usage is dominated by the four FIFOs (`fifo_sync` from `asylum:component:fifo`, instantiated by `csr_fifo` when a depth is non-zero).
 
 ## Design Notes
 
@@ -251,6 +255,9 @@ asylum-system-mailbox/
 │   └── mailbox.drawio          # Block diagram
 ├── sim/
 │   └── tb_mailbox.vhd          # UVVM testbench
+├── syn/ghdl/
+│   ├── sbi_mailbox_synth_top.vhd  # Lint / synthesis check top (flat SBI ports)
+│   └── ghdl_synth.sh           # ghdl --synth check (post_run hook of lint_ghdl_synth)
 ├── hdl/
 │   ├── mailbox_pkg.vhd
 │   ├── sbi_mailbox.vhd
