@@ -1,12 +1,12 @@
 -------------------------------------------------------------------------------
--- Title      : sbi_mailbox_synth_top
+-- Title      : sbi_mailbox_wrapper
 -- Project    : Asylum
 -------------------------------------------------------------------------------
--- File       : sbi_mailbox_synth_top.vhd
+-- File       : sbi_mailbox_wrapper.vhd
 -- Author     : Mathieu Rosiere
 -------------------------------------------------------------------------------
 -- Description:
--- Synthesis check top (lint_ghdl, lint_ghdl_synth) : sbi_mailbox with flat
+-- Wrapper (lint_ghdl, lint_ghdl_synth_*) : sbi_mailbox with flat
 -- and constrained ports (sbi_mailbox has unconstrained SBI ports and cannot
 -- be a synthesis top). SBI address / data width : SBI_ADDR_WIDTH /
 -- SBI_DATA_WIDTH. The FIFO depths are forwarded, with the defaults of the
@@ -18,6 +18,7 @@
 -- Revisions  :
 -- Date        Version  Author   Description
 -- 2026-10-20  1.0      mrosiere Created
+-- 2026-10-24  1.1      mrosiere Was sbi_mailbox_synth_top, library asylum
 -------------------------------------------------------------------------------
 
 library ieee;
@@ -25,7 +26,7 @@ use     ieee.std_logic_1164.all;
 library asylum;
 use     asylum.sbi_pkg.all;
 
-entity sbi_mailbox_synth_top is
+entity sbi_mailbox_wrapper is
   generic (
     FIFO0_DEPTH_TX  : natural := 4;
     FIFO0_DEPTH_RX  : natural := 4;
@@ -45,9 +46,9 @@ entity sbi_mailbox_synth_top is
     ready_o       : out std_logic;
     rdata_o       : out std_logic_vector(SBI_DATA_WIDTH-1 downto 0)
   );
-end entity sbi_mailbox_synth_top;
+end entity sbi_mailbox_wrapper;
 
-architecture rtl of sbi_mailbox_synth_top is
+architecture rtl of sbi_mailbox_wrapper is
 
   signal sbi_ini       : sbi_ini_t(addr (SBI_ADDR_WIDTH-1 downto 0),
                                    wdata(SBI_DATA_WIDTH-1 downto 0));
