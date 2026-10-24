@@ -54,14 +54,6 @@ architecture rtl of mailbox_registers is
 
   signal   sig_busy  : std_logic;
 
-  function INIT_fifo0
-    return std_logic_vector is
-    variable tmp : std_logic_vector(8-1 downto 0);
-  begin  -- function INIT_fifo0
-    tmp(7 downto 0) := "00000000"; -- value
-    return tmp;
-  end function INIT_fifo0;
-
   signal   fifo0_wcs       : std_logic;
   signal   fifo0_we        : std_logic;
   signal   fifo0_wdata     : std_logic_vector(8-1 downto 0);
@@ -75,14 +67,6 @@ architecture rtl of mailbox_registers is
   signal   fifo0_rdata_sw  : std_logic_vector(8-1 downto 0);
   signal   fifo0_rdata_hw  : std_logic_vector(8-1 downto 0);
   signal   fifo0_rbusy     : std_logic;
-
-  function INIT_fifo1
-    return std_logic_vector is
-    variable tmp : std_logic_vector(8-1 downto 0);
-  begin  -- function INIT_fifo1
-    tmp(7 downto 0) := "00000000"; -- value
-    return tmp;
-  end function INIT_fifo1;
 
   signal   fifo1_wcs       : std_logic;
   signal   fifo1_we        : std_logic;
@@ -137,15 +121,15 @@ begin  -- architecture rtl
     fifo0_rcs     <= '1' when (sig_raddr = mailbox_FIFO0) else '0';
     fifo0_re      <= sig_rcs and sig_re and fifo0_rcs;
     fifo0_rdata   <= (
-      0 => fifo0_rdata_sw(0), -- value(0)
-      1 => fifo0_rdata_sw(1), -- value(1)
-      2 => fifo0_rdata_sw(2), -- value(2)
-      3 => fifo0_rdata_sw(3), -- value(3)
-      4 => fifo0_rdata_sw(4), -- value(4)
-      5 => fifo0_rdata_sw(5), -- value(5)
-      6 => fifo0_rdata_sw(6), -- value(6)
-      7 => fifo0_rdata_sw(7), -- value(7)
-      others => '0');
+       0 => fifo0_rdata_sw(0) -- value(0)
+      ,1 => fifo0_rdata_sw(1) -- value(1)
+      ,2 => fifo0_rdata_sw(2) -- value(2)
+      ,3 => fifo0_rdata_sw(3) -- value(3)
+      ,4 => fifo0_rdata_sw(4) -- value(4)
+      ,5 => fifo0_rdata_sw(5) -- value(5)
+      ,6 => fifo0_rdata_sw(6) -- value(6)
+      ,7 => fifo0_rdata_sw(7) -- value(7)
+      );
 
     fifo0_wcs     <= '1' when       (sig_waddr = mailbox_FIFO0)   else '0';
     fifo0_we      <= sig_wcs and sig_we and fifo0_wcs;
@@ -218,15 +202,15 @@ begin  -- architecture rtl
     fifo1_rcs     <= '1' when (sig_raddr = mailbox_FIFO1) else '0';
     fifo1_re      <= sig_rcs and sig_re and fifo1_rcs;
     fifo1_rdata   <= (
-      0 => fifo1_rdata_sw(0), -- value(0)
-      1 => fifo1_rdata_sw(1), -- value(1)
-      2 => fifo1_rdata_sw(2), -- value(2)
-      3 => fifo1_rdata_sw(3), -- value(3)
-      4 => fifo1_rdata_sw(4), -- value(4)
-      5 => fifo1_rdata_sw(5), -- value(5)
-      6 => fifo1_rdata_sw(6), -- value(6)
-      7 => fifo1_rdata_sw(7), -- value(7)
-      others => '0');
+       0 => fifo1_rdata_sw(0) -- value(0)
+      ,1 => fifo1_rdata_sw(1) -- value(1)
+      ,2 => fifo1_rdata_sw(2) -- value(2)
+      ,3 => fifo1_rdata_sw(3) -- value(3)
+      ,4 => fifo1_rdata_sw(4) -- value(4)
+      ,5 => fifo1_rdata_sw(5) -- value(5)
+      ,6 => fifo1_rdata_sw(6) -- value(6)
+      ,7 => fifo1_rdata_sw(7) -- value(7)
+      );
 
     fifo1_wcs     <= '1' when       (sig_waddr = mailbox_FIFO1)   else '0';
     fifo1_we      <= sig_wcs and sig_we and fifo1_wcs;
