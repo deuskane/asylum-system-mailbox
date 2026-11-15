@@ -50,7 +50,7 @@ filesets:
     file_type    : vhdlSource
     logical_name : asylum
     depend       :
-      - asylum:utils:generators
+      - ">=asylum:utils:generators:2.8.0"
       - asylum:utils:pkg
       - asylum:target:techmap
 
@@ -62,6 +62,17 @@ filesets:
     file_type : vhdlSource-2008
     depend       :
       - bitvis:verification:uvvm
+
+  #---------------------------------------
+  syn:
+  #---------------------------------------
+    files        :
+      - syn/sbi_mailbox_wrapper.vhd
+    file_type    : vhdlSource-2008
+    logical_name : asylum
+    # ghdl_synth.sh / ghdl_synth.mk (pre_run hook of lint_ghdl_synth_*)
+    depend       :
+      - asylum:utils:ghdl_synth
 
 #=========================================
 targets:
@@ -77,6 +88,68 @@ targets:
     default_tool    : ghdl
     generate        :
       - gen_csr
+
+  #---------------------------------------
+  # Lint : -Wall analysis and elaboration (empty simulation)
+  #---------------------------------------
+  lint_ghdl : &lint_ghdl
+    << : *default
+    description     : Lint with GHDL (-Wall analysis and elaboration of sbi_mailbox_wrapper)
+    toplevel        : asylum.sbi_mailbox_wrapper
+    filesets_append : [syn]
+    default_tool    : ghdl
+    tools :
+      ghdl :
+        analyze_options : ["-Wall"]
+
+  #---------------------------------------
+  # Synthesis check : -Wall analysis, ghdl --synth -Wall and elaboration
+  # (no simulation) of sbi_mailbox_wrapper with the generics of the target.
+  # The pre_run hook (ghdl_synth.sh of asylum:utils:ghdl_synth) adds
+  # ghdl_synth.mk to the edalize Makefile.
+  # FuseSoC merges tools in depth : analyze_options comes from lint_ghdl.
+  #---------------------------------------
+  lint_ghdl_synth_default : &lint_ghdl_synth
+    << : *lint_ghdl
+    description     : Synthesis check of sbi_mailbox_wrapper, FIFO depths 4/4/4/4 (PicoSoC)
+    tools :
+      ghdl :
+        run_options     : ["--no-run"]
+    hooks :
+      pre_run : [ghdl_synth]
+
+  #---------------------------------------
+  lint_ghdl_synth_depth0 :
+  #---------------------------------------
+    << : *lint_ghdl_synth
+    description     : Synthesis check of sbi_mailbox_wrapper, FIFO depths 0/4/2/0
+    parameters      :
+      - FIFO0_DEPTH_TX=0
+      - FIFO0_DEPTH_RX=4
+      - FIFO1_DEPTH_TX=2
+      - FIFO1_DEPTH_RX=0
+
+  #---------------------------------------
+  lint_ghdl_synth_depth2_8 :
+  #---------------------------------------
+    << : *lint_ghdl_synth
+    description     : Synthesis check of sbi_mailbox_wrapper, FIFO depths 2/2/8/2
+    parameters      :
+      - FIFO0_DEPTH_TX=2
+      - FIFO0_DEPTH_RX=2
+      - FIFO1_DEPTH_TX=8
+      - FIFO1_DEPTH_RX=2
+
+  #---------------------------------------
+  lint_ghdl_synth_depth1 :
+  #---------------------------------------
+    << : *lint_ghdl_synth
+    description     : Synthesis check of sbi_mailbox_wrapper, FIFO depths 1/1/1/0
+    parameters      :
+      - FIFO0_DEPTH_TX=1
+      - FIFO0_DEPTH_RX=1
+      - FIFO1_DEPTH_TX=1
+      - FIFO1_DEPTH_RX=0
 
   #---------------------------------------
   sim_mailbox_4_4:
@@ -153,6 +226,16 @@ targets:
       ghdl :
         analyze_options : ["-Wall","-fsynopsys","-frelaxed","--no-vital-checks"]
         run_options     : ["--fst=dut.fst","--ieee-asserts=disable"]
+
+#=========================================
+scripts:
+#=========================================
+
+  #---------------------------------------
+  # pre_run hook of lint_ghdl_synth_* (cwd = work_root)
+  #---------------------------------------
+  ghdl_synth :
+    cmd : [bash, ghdl_synth.sh]
 
 #=========================================
 parameters :
