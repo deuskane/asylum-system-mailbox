@@ -19,6 +19,8 @@
 -- 2025-07-04  0.1      mrosiere Created
 -- 2026-10-05  0.2      mrosiere Add assertions : a channel with both FIFO depths
 --                               equal to 0 is unusable (every access stalls)
+-- 2026-11-16  0.3      mrosiere Status registers, BLOCKING_READ / BLOCKING_WRITE,
+--                               status outputs fifo_empty_o / fifo_full_o
 -------------------------------------------------------------------------------
 
 library IEEE;
@@ -51,7 +53,12 @@ entity sbi_mailbox is
 
     -- Bus
     sbi_ini_i        : in  sbi_ini_t;
-    sbi_tgt_o        : out sbi_tgt_t
+    sbi_tgt_o        : out sbi_tgt_t;
+
+    -- Status of the channels (same flags as the status0 / status1
+    -- registers), e.g. interrupt sources of a GIC. Bit n : fifo<n>
+    fifo_empty_o     : out std_logic_vector(2-1 downto 0); -- no data to read, a read stalls
+    fifo_full_o      : out std_logic_vector(2-1 downto 0)  -- no free slot, a write stalls
     );
 
 end entity sbi_mailbox;
@@ -144,5 +151,13 @@ begin  -- architecture rtl
   hw2sw.status1.we       <= '1';
   hw2sw.status1.empty(0) <= sw2hw.fifo1.hw2sw_empty;
   hw2sw.status1.full (0) <= sw2hw.fifo1.sw2hw_full;
+
+  -----------------------------------------------------------------------------
+  -- Status outputs (combinational, same flags as the status registers)
+  -----------------------------------------------------------------------------
+  fifo_empty_o(0)        <= sw2hw.fifo0.hw2sw_empty;
+  fifo_empty_o(1)        <= sw2hw.fifo1.hw2sw_empty;
+  fifo_full_o (0)        <= sw2hw.fifo0.sw2hw_full;
+  fifo_full_o (1)        <= sw2hw.fifo1.sw2hw_full;
   
 end architecture rtl;

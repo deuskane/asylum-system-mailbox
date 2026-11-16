@@ -19,8 +19,9 @@
 --              Non blocking accesses (BLOCKING_READ/WRITE = false) : such an
 --              access completes without wait state and has no effect; a read
 --              polls the status register until a data is available.
---              The status registers (empty, full) are checked against the
---              model of the channel.
+--              The status registers (empty, full) and the status outputs
+--              (fifo_empty_o, fifo_full_o) are checked against the model of
+--              the channel.
 -------------------------------------------------------------------------------
 -- Copyright (c) 2026
 -------------------------------------------------------------------------------
@@ -76,6 +77,8 @@ architecture sim of tb_mailbox is
   signal clk_i            : std_logic := '0';
   signal clk_ena          : boolean   := true;
   signal arst_b_i         : std_logic := '0';
+  signal fifo_empty       : std_logic_vector(1 downto 0);
+  signal fifo_full        : std_logic_vector(1 downto 0);
 
   signal sbi_ini          : sbi_ini_t(addr (C_ADDR_WIDTH-1 downto 0),
                                       wdata(C_DATA_WIDTH-1 downto 0));
@@ -103,7 +106,9 @@ begin
       clk_i          => clk_i,
       arst_b_i       => arst_b_i,
       sbi_ini_i      => sbi_ini,
-      sbi_tgt_o      => sbi_tgt
+      sbi_tgt_o      => sbi_tgt,
+      fifo_empty_o   => fifo_empty,
+      fifo_full_o    => fifo_full
     );
 
   sbi_ini.cs    <= sbi_if.cs;
@@ -209,6 +214,10 @@ begin
         v(1) := '1';  -- full
       end if;
       chk(C_STATUS(f), v, "status" & integer'image(f) & " " & msg);
+      -- status outputs : same flags
+      check_value(fifo_empty(f), v(0), error, "fifo_empty_o(" & integer'image(f) & ") " & msg, C_SCOPE);
+      check_value(fifo_full (f), v(1), error, "fifo_full_o("  & integer'image(f) & ") " & msg, C_SCOPE);
+      v_checks := v_checks + 2;
     end procedure;
 
     -- Non blocking read : poll the status until a data is available

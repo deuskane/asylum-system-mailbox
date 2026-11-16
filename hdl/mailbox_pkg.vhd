@@ -44,7 +44,12 @@ component sbi_mailbox is
 
     -- Bus
     sbi_ini_i        : in  sbi_ini_t;
-    sbi_tgt_o        : out sbi_tgt_t
+    sbi_tgt_o        : out sbi_tgt_t;
+
+    -- Status of the channels (same flags as the status0 / status1
+    -- registers), e.g. interrupt sources of a GIC. Bit n : fifo<n>
+    fifo_empty_o     : out std_logic_vector(2-1 downto 0); -- no data to read, a read stalls
+    fifo_full_o      : out std_logic_vector(2-1 downto 0)  -- no free slot, a write stalls
     );
 
 end component sbi_mailbox;
