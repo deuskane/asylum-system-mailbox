@@ -44,7 +44,10 @@ entity sbi_mailbox_wrapper is
     addr_i        : in  std_logic_vector(SBI_ADDR_WIDTH-1 downto 0);
     wdata_i       : in  std_logic_vector(SBI_DATA_WIDTH-1 downto 0);
     ready_o       : out std_logic;
-    rdata_o       : out std_logic_vector(SBI_DATA_WIDTH-1 downto 0)
+    rdata_o       : out std_logic_vector(SBI_DATA_WIDTH-1 downto 0);
+
+    fifo_empty_o  : out std_logic_vector(2-1 downto 0);
+    fifo_full_o   : out std_logic_vector(2-1 downto 0)
   );
 end entity sbi_mailbox_wrapper;
 
@@ -75,7 +78,9 @@ begin
       clk_i           => clk_i,
       arst_b_i        => arst_b_i,
       sbi_ini_i       => sbi_ini,
-      sbi_tgt_o       => sbi_tgt
+      sbi_tgt_o       => sbi_tgt,
+      fifo_empty_o    => fifo_empty_o,
+      fifo_full_o     => fifo_full_o
     );
 
 end architecture rtl;

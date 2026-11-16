@@ -35,6 +35,8 @@ component sbi_mailbox is
    ;FIFO0_DEPTH_RX   : natural -- FIFO0 Depth of FIFO RX (HW2SW)
    ;FIFO1_DEPTH_TX   : natural -- FIFO1 Depth of FIFO TX (SW2HW)
    ;FIFO1_DEPTH_RX   : natural -- FIFO1 Depth of FIFO RX (HW2SW)
+   ;BLOCKING_READ    : boolean := true -- Read  of an empty channel waits for a data
+   ;BLOCKING_WRITE   : boolean := true -- Write in a full   channel waits for a free slot
   );
   port   (
     clk_i            : in  std_logic;
@@ -42,7 +44,12 @@ component sbi_mailbox is
 
     -- Bus
     sbi_ini_i        : in  sbi_ini_t;
-    sbi_tgt_o        : out sbi_tgt_t
+    sbi_tgt_o        : out sbi_tgt_t;
+
+    -- Status of the channels (same flags as the status0 / status1
+    -- registers), e.g. interrupt sources of a GIC. Bit n : fifo<n>
+    fifo_empty_o     : out std_logic_vector(2-1 downto 0); -- no data to read, a read stalls
+    fifo_full_o      : out std_logic_vector(2-1 downto 0)  -- no free slot, a write stalls
     );
 
 end component sbi_mailbox;

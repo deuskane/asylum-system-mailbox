@@ -20,6 +20,8 @@ entity mailbox_registers is
    ;FIFO0_DEPTH_RX : natural -- FIFO0 Depth of FIFO RX (HW2SW)
    ;FIFO1_DEPTH_TX : natural -- FIFO1 Depth of FIFO TX (SW2HW)
    ;FIFO1_DEPTH_RX : natural -- FIFO1 Depth of FIFO RX (HW2SW)
+   ;BLOCKING_READ  : boolean -- True : a read of an empty channel waits for a data (sbi ready low), False : it completes at once (data not valid, nothing popped)
+   ;BLOCKING_WRITE : boolean -- True : a write in a full channel waits for a free slot (sbi ready low), False : it completes at once (data dropped)
   );
   port (
     -- Clock and Reset
@@ -76,6 +78,23 @@ architecture rtl of mailbox_registers is
   signal   fifo0_rdata      : std_logic_vector(MAILBOX_DATA_WIDTH-1 downto 0);
 
   --==================================
+  -- Register    : status0
+  -- Description : FIFO0 status (read only, writes are ignored). One read wait state : the value reflects the access just before
+  -- Address     : 0x1
+  -- Width       : 2
+  -- Sw Access   : ro
+  -- Hw Access   : wo
+  -- Hw Type     : reg
+  --==================================
+  constant INIT_status0_empty : std_logic_vector(0 downto 0) := "1";
+  constant INIT_status0_full  : std_logic_vector(0 downto 0) := "0";
+  signal   status0_wcs        : std_logic;
+  signal   status0_wbusy      : std_logic;
+  signal   status0_rcs        : std_logic;
+  signal   status0_rbusy      : std_logic;
+  signal   status0_rdata      : std_logic_vector(MAILBOX_DATA_WIDTH-1 downto 0);
+
+  --==================================
   -- Register    : fifo1
   -- Description : FIFO1
   -- Address     : 0x2
@@ -90,6 +109,23 @@ architecture rtl of mailbox_registers is
   signal   fifo1_rcs        : std_logic;
   signal   fifo1_rbusy      : std_logic;
   signal   fifo1_rdata      : std_logic_vector(MAILBOX_DATA_WIDTH-1 downto 0);
+
+  --==================================
+  -- Register    : status1
+  -- Description : FIFO1 status (read only, writes are ignored). One read wait state : the value reflects the access just before
+  -- Address     : 0x3
+  -- Width       : 2
+  -- Sw Access   : ro
+  -- Hw Access   : wo
+  -- Hw Type     : reg
+  --==================================
+  constant INIT_status1_empty : std_logic_vector(0 downto 0) := "1";
+  constant INIT_status1_full  : std_logic_vector(0 downto 0) := "0";
+  signal   status1_wcs        : std_logic;
+  signal   status1_wbusy      : std_logic;
+  signal   status1_rcs        : std_logic;
+  signal   status1_rbusy      : std_logic;
+  signal   status1_rdata      : std_logic_vector(MAILBOX_DATA_WIDTH-1 downto 0);
 
 
 begin  -- architecture rtl
@@ -160,8 +196,8 @@ begin  -- architecture rtl
     ins_fifo0 : csr_fifo
       generic map
         (WIDTH          => 8
-        ,BLOCKING_READ  => true
-        ,BLOCKING_WRITE => true
+        ,BLOCKING_READ  => BLOCKING_READ
+        ,BLOCKING_WRITE => BLOCKING_WRITE
         ,DEPTH_SW2HW    => FIFO0_DEPTH_TX
         ,DEPTH_HW2SW    => FIFO0_DEPTH_RX
         )
@@ -203,6 +239,64 @@ begin  -- architecture rtl
   end generate gen_fifo0_b;
 
   --==================================
+  -- Register    : status0
+  -- Description : FIFO0 status (read only, writes are ignored). One read wait state : the value reflects the access just before
+  -- Address     : 0x1
+  -- Width       : 2
+  -- Sw Access   : ro
+  -- Hw Access   : wo
+  -- Hw Type     : reg
+  --==================================
+  gen_status0: if (true) generate
+    constant INIT_status0     : std_logic_vector(1 downto 0) := INIT_status0_full & INIT_status0_empty;
+    signal   status0_re       : std_logic;
+    signal   status0_we       : std_logic;
+    signal   status0_wdata_sw : std_logic_vector(1 downto 0);
+    signal   status0_wdata_hw : std_logic_vector(1 downto 0);
+    signal   status0_rdata_sw : std_logic_vector(1 downto 0);
+  begin
+    status0_rcs <= '1' when sig_raddr = MAILBOX_STATUS0 else
+                   '0';
+    status0_re       <= sig_rcs and sig_re and status0_rcs;
+    status0_rdata    <= "000000" & status0_rdata_sw(1 downto 1) & status0_rdata_sw(0 downto 0);
+    status0_wcs      <= '0';
+    status0_we       <= '0';
+    status0_wdata_sw <= (others => '0');
+    status0_wdata_hw <= hw2sw_i.status0.full & hw2sw_i.status0.empty;
+    ins_status0 : csr_reg
+      generic map
+        (WIDTH         => 2
+        ,INIT          => INIT_status0
+        ,MODEL         => "ro"
+        ,RD_WAIT_STATE => 1
+        )
+      port map
+        (clk_i      => clk_i
+        ,arst_b_i   => arst_b_i
+        ,sw_wd_i    => status0_wdata_sw
+        ,sw_rd_o    => status0_rdata_sw
+        ,sw_we_i    => status0_we
+        ,sw_re_i    => status0_re
+        ,sw_rbusy_o => status0_rbusy
+        ,sw_wbusy_o => status0_wbusy
+        ,hw_wd_i    => status0_wdata_hw
+        ,hw_rd_o    => open
+        ,hw_we_i    => hw2sw_i.status0.we
+        ,hw_sw_re_o => sw2hw_o.status0.re
+        ,hw_sw_we_o => open
+        );
+  end generate gen_status0;
+
+  gen_status0_b: if not (true) generate
+    status0_rcs        <= '0';
+    status0_rbusy      <= '0';
+    status0_rdata      <= (others => '0');
+    status0_wcs        <= '0';
+    status0_wbusy      <= '0';
+    sw2hw_o.status0.re <= '0';
+  end generate gen_status0_b;
+
+  --==================================
   -- Register    : fifo1
   -- Description : FIFO1
   -- Address     : 0x2
@@ -232,8 +326,8 @@ begin  -- architecture rtl
     ins_fifo1 : csr_fifo
       generic map
         (WIDTH          => 8
-        ,BLOCKING_READ  => true
-        ,BLOCKING_WRITE => true
+        ,BLOCKING_READ  => BLOCKING_READ
+        ,BLOCKING_WRITE => BLOCKING_WRITE
         ,DEPTH_SW2HW    => FIFO1_DEPTH_TX
         ,DEPTH_HW2SW    => FIFO1_DEPTH_RX
         )
@@ -274,15 +368,79 @@ begin  -- architecture rtl
     sw2hw_o.fifo1.hw2sw_full  <= '0';
   end generate gen_fifo1_b;
 
+  --==================================
+  -- Register    : status1
+  -- Description : FIFO1 status (read only, writes are ignored). One read wait state : the value reflects the access just before
+  -- Address     : 0x3
+  -- Width       : 2
+  -- Sw Access   : ro
+  -- Hw Access   : wo
+  -- Hw Type     : reg
+  --==================================
+  gen_status1: if (true) generate
+    constant INIT_status1     : std_logic_vector(1 downto 0) := INIT_status1_full & INIT_status1_empty;
+    signal   status1_re       : std_logic;
+    signal   status1_we       : std_logic;
+    signal   status1_wdata_sw : std_logic_vector(1 downto 0);
+    signal   status1_wdata_hw : std_logic_vector(1 downto 0);
+    signal   status1_rdata_sw : std_logic_vector(1 downto 0);
+  begin
+    status1_rcs <= '1' when sig_raddr = MAILBOX_STATUS1 else
+                   '0';
+    status1_re       <= sig_rcs and sig_re and status1_rcs;
+    status1_rdata    <= "000000" & status1_rdata_sw(1 downto 1) & status1_rdata_sw(0 downto 0);
+    status1_wcs      <= '0';
+    status1_we       <= '0';
+    status1_wdata_sw <= (others => '0');
+    status1_wdata_hw <= hw2sw_i.status1.full & hw2sw_i.status1.empty;
+    ins_status1 : csr_reg
+      generic map
+        (WIDTH         => 2
+        ,INIT          => INIT_status1
+        ,MODEL         => "ro"
+        ,RD_WAIT_STATE => 1
+        )
+      port map
+        (clk_i      => clk_i
+        ,arst_b_i   => arst_b_i
+        ,sw_wd_i    => status1_wdata_sw
+        ,sw_rd_o    => status1_rdata_sw
+        ,sw_we_i    => status1_we
+        ,sw_re_i    => status1_re
+        ,sw_rbusy_o => status1_rbusy
+        ,sw_wbusy_o => status1_wbusy
+        ,hw_wd_i    => status1_wdata_hw
+        ,hw_rd_o    => open
+        ,hw_we_i    => hw2sw_i.status1.we
+        ,hw_sw_re_o => sw2hw_o.status1.re
+        ,hw_sw_we_o => open
+        );
+  end generate gen_status1;
+
+  gen_status1_b: if not (true) generate
+    status1_rcs        <= '0';
+    status1_rbusy      <= '0';
+    status1_rdata      <= (others => '0');
+    status1_wcs        <= '0';
+    status1_wbusy      <= '0';
+    sw2hw_o.status1.re <= '0';
+  end generate gen_status1_b;
+
   -- Busy and read data (unmapped address : no busy, read 0)
   sig_wbusy <= fifo0_wbusy when fifo0_wcs = '1' else
+               status0_wbusy when status0_wcs = '1' else
                fifo1_wbusy when fifo1_wcs = '1' else
+               status1_wbusy when status1_wcs = '1' else
                '0';
   sig_rbusy <= fifo0_rbusy when fifo0_rcs = '1' else
+               status0_rbusy when status0_rcs = '1' else
                fifo1_rbusy when fifo1_rcs = '1' else
+               status1_rbusy when status1_rcs = '1' else
                '0';
   sig_rdata <= fifo0_rdata when fifo0_rcs = '1' else
+               status0_rdata when status0_rcs = '1' else
                fifo1_rdata when fifo1_rcs = '1' else
+               status1_rdata when status1_rcs = '1' else
                (others => '0');
 
 end architecture rtl;
