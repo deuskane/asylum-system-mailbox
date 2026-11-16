@@ -40,7 +40,7 @@
 
 **Two-channel byte mailbox (FIFOs looped back in hardware) with CSR access over the SBI bus.**
 
-VLNV: `asylum:system:mailbox:1.0.2`
+VLNV: `asylum:system:mailbox:1.1.0`
 
 ## Table of Contents
 
@@ -244,7 +244,7 @@ make clean                   # remove build/ and log/
 Equivalent FuseSoC command (the depths can be overridden on the command line):
 
 ```bash
-fusesoc --cores-root . run --build-root build --target sim_mailbox_4_4 asylum:system:mailbox:1.0.2 --FIFO1_DEPTH_RX=8
+fusesoc --cores-root . run --build-root build --target sim_mailbox_4_4 asylum:system:mailbox:1.1.0 --FIFO1_DEPTH_RX=8
 ```
 
 CI ([.github/workflows/ci.yml](.github/workflows/ci.yml)) runs every `sim_*` target.

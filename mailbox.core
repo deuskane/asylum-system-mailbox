@@ -18,9 +18,13 @@ CAPI=2:
 # 2026-10-05  1.0.2    mrosiere Fix default target toplevel (sbi_mailbox), assert that a
 #                               channel has a non-zero depth, add UVVM testbench
 #                               (incl. single-word FIFOs, needs fifo >= 1.2.1)
+# 2026-11-16  1.1.0    mrosiere Status registers status0 / status1 (one read wait
+#                               state, generators >= 2.10.0), BLOCKING_READ /
+#                               BLOCKING_WRITE, status outputs fifo_empty_o /
+#                               fifo_full_o, check of the FIFO depths
 #-----------------------------------------------------------------------------
 
-name        : asylum:system:mailbox:1.0.2
+name        : asylum:system:mailbox:1.1.0
 description : mailbox Module
 
 #=========================================
