@@ -1,12 +1,24 @@
-default                  : Default Target
-lint_ghdl                : Lint with GHDL (-Wall analysis and elaboration of sbi_mailbox_wrapper)
-lint_ghdl_synth_default  : Synthesis check of sbi_mailbox_wrapper, FIFO depths 4/4/4/4 (PicoSoC)
-lint_ghdl_synth_depth0   : Synthesis check of sbi_mailbox_wrapper, FIFO depths 0/4/2/0
-lint_ghdl_synth_depth1   : Synthesis check of sbi_mailbox_wrapper, FIFO depths 1/1/1/0
-lint_ghdl_synth_depth2_8 : Synthesis check of sbi_mailbox_wrapper, FIFO depths 2/2/8/2
-sim_mailbox_2_8          : Simulation of sbi_mailbox with VIP - FIFO0 TX 2 / RX 2, FIFO1 TX 8 / RX 2
-sim_mailbox_4_4          : Simulation of sbi_mailbox with VIP - FIFO0 TX 4 / RX 4, FIFO1 TX 4 / RX 4 (PicoSoC configuration)
-sim_mailbox_depth0       : Simulation of sbi_mailbox with VIP - FIFO0 TX 0 / RX 4, FIFO1 TX 2 / RX 0 (one FIFO bypassed per channel)
-sim_mailbox_depth1       : Simulation of sbi_mailbox with VIP - FIFO0 TX 1 / RX 1, FIFO1 TX 1 / RX 0 (single-word FIFOs)
-sim_mailbox_nonblocking  : Simulation of sbi_mailbox with VIP - non blocking accesses, FIFO0 TX 4 / RX 0, FIFO1 TX 0 / RX 2
+default                       : Default Target
+lint_ghdl                     : Lint with GHDL (-Wall analysis and elaboration of sbi_mailbox_wrapper)
+lint_ghdl_synth_default       : Synthesis check of sbi_mailbox_wrapper, FIFO depths 4/4/4/4 (PicoSoC)
+lint_ghdl_synth_depth0        : Synthesis check of sbi_mailbox_wrapper, FIFO depths 0/4/2/0
+lint_ghdl_synth_depth1        : Synthesis check of sbi_mailbox_wrapper, FIFO depths 1/1/1/0
+lint_ghdl_synth_depth2_8      : Synthesis check of sbi_mailbox_wrapper, FIFO depths 2/2/8/2
+sim_mailbox_2_8               : Simulation of sbi_mailbox (UVVM) - FIFO0 TX 2 / RX 2, FIFO1 TX 8 / RX 2, every scenario
+sim_mailbox_4_4               : Simulation of sbi_mailbox (UVVM) - FIFO0 TX 4 / RX 4, FIFO1 TX 4 / RX 4 (PicoSoC configuration), build only (scenarios of TESTS_LIST)
+sim_mailbox_4_4_async_reset   : Simulation of sbi_mailbox (UVVM) - FIFO depths 4/4/4/4, asynchronous reset of full channels
+sim_mailbox_4_4_fill          : Simulation of sbi_mailbox (UVVM) - FIFO depths 4/4/4/4, fill each channel, write in the full channel, read back in order, status after each access
+sim_mailbox_4_4_independent   : Simulation of sbi_mailbox (UVVM) - FIFO depths 4/4/4/4, fifo0 full while fifo1 is used, status of both
+sim_mailbox_4_4_random        : Simulation of sbi_mailbox (UVVM) - FIFO depths 4/4/4/4, random writes and reads in each channel
+sim_mailbox_4_4_reset_values  : Simulation of sbi_mailbox (UVVM) - FIFO depths 4/4/4/4, empty channels after reset, status registers and outputs, read of an empty channel
+sim_mailbox_4_4_status_write  : Simulation of sbi_mailbox (UVVM) - FIFO depths 4/4/4/4, writes of the read only status registers
+sim_mailbox_4_4_write_read    : Simulation of sbi_mailbox (UVVM) - FIFO depths 4/4/4/4, read of each byte just after its write
+sim_mailbox_depth0            : Simulation of sbi_mailbox (UVVM) - FIFO0 TX 0 / RX 4, FIFO1 TX 2 / RX 0 (one FIFO bypassed per channel), every scenario
+sim_mailbox_depth1            : Simulation of sbi_mailbox (UVVM) - FIFO0 TX 1 / RX 1, FIFO1 TX 1 / RX 0 (single-word FIFOs), every scenario
+sim_mailbox_nonblocking       : Simulation of sbi_mailbox (UVVM) - non blocking accesses, FIFO0 TX 4 / RX 0, FIFO1 TX 0 / RX 2, every scenario
+sim_mailbox_nonblocking_write : Simulation of sbi_mailbox (UVVM) - blocking read, non blocking write, FIFO depths 4/4/4/4, every scenario
+syn_default                   : Synthesis (Artix-7, sky130) of sbi_mailbox_wrapper, FIFO depths 4/4/4/4 (PicoSoC)
+syn_depth0                    : Synthesis (Artix-7, sky130) of sbi_mailbox_wrapper, FIFO depths 0/4/2/0
+syn_depth1                    : Synthesis (Artix-7, sky130) of sbi_mailbox_wrapper, FIFO depths 1/1/1/0
+syn_depth2_8                  : Synthesis (Artix-7, sky130) of sbi_mailbox_wrapper, FIFO depths 2/2/8/2
 

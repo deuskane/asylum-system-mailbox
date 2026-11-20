@@ -1,132 +1,95 @@
 <!--
-  README GENERATION INSTRUCTIONS (for the next regeneration run)
+  README MODEL (common to every Asylum IP, keep the same headings)
   ----------------------------------------------------------------
-  This README follows the common Asylum IP model. Regenerate it from the
-  sources, never from the previous README text alone.
-
-  Sources of truth (in priority order):
-    1. hdl/*.vhd            : entities, generics, ports, packages
-    2. hdl/csr/*.hjson      : register map (regtool); *_csr.md/.h are generated
-    3. <IP>.core            : VLNV (name), filesets, targets, depends, revisions
-    4. mk/targets.txt       : target list shown by `make help`; mk/defs.mk
-    5. sim/, syn/, esw/, boards/ : testbenches, constraints, software
-  Section order (keep it, same headings in every IP):
-    CI badge / Title + one-line description + VLNV / Table of Contents /
-    Introduction (Key Features) / Block Diagram / Top-Level (Parameters,
-    Ports, Instantiation Example) / HDL Modules / Register Map /
-    Verification / Synthesis / Design Notes (optional) /
-    Directory Structure / Dependencies
+  Regenerate from the sources, never from the previous README text alone:
+    hdl/*.vhd (entities, generics, ports), hdl/csr/*.hjson (register map),
+    <IP>.core (VLNV, targets, depends), mk/targets.txt, sim/, syn/, esw/.
+  Sections, in this order:
+    badges / title + one-line pitch / Overview / Features / Block Diagram /
+    Getting Started / Hardware Interfaces / Configuration / Resources /
+    Theory of Operation / Registers / Programmer's Guide /
+    Design Verification / Dependencies and Related IPs / License
   Rules:
-    - Language: English. Tables: Parameters = Name|Type|Default|Description,
-      Ports = Name|Direction|Type|Description (grouped by interface).
-    - Register Map: link to the generated hdl/csr/<X>_csr.md (plus the
-      .hjson source and _csr.h header); never copy register tables here.
-    - Top-Level = sbi_* wrapper if present, else the entity used by the
-      `default` target, else the main entity (libraries: list packages).
-    - Write "This IP has no software-visible registers." / "No dedicated
-      synthesis target ..." instead of removing a section.
-    - Keep still-accurate hand-written content (ISA tables, results,
-      images) in "Design Notes"; drop anything not backed by the sources.
-    - Block diagram: doc/<NAME>.drawio (NAME = 4th field of the VLNV),
-      top entity box with generics on top, inputs left, outputs right,
-      bus interfaces as bold arrows, internal blocks colour-coded
-      (CSR yellow, FIFO/memory green, core logic blue, external grey).
-      Update it whenever ports/generics/sub-blocks change.
-    - Do not edit generated files (hdl/csr/*_csr.*) or the CI badge URL.
+    - English, short and factual: every statement backed by the sources.
+    - No VLNV line: the version badge shows it.
+    - Badges: first line version, license; second line CI, lint, sim, syn.
+    - Block diagram and FSM: pages Overview and FSM of doc/<NAME>.drawio, exported to
+      doc/<NAME>-Overview.png and doc/<NAME>-FSM.png (make -C doc).
+    - Timing diagrams: WaveDrom source doc/<NAME>-<what>.json, rendered
+      doc/<NAME>-<what>.svg (make -C doc), shown as images.
+    - No CPU named (OpenBlaze, PicoBlaze, RISC-V) outside the CPU and SoC IPs.
+    - Registers: link to the generated hdl/csr/<X>_csr.md, never copy the tables.
+    - Tables: Configuration = Name|Type|Default|Description,
+      Hardware Interfaces = Name|Direction|Type|Description, grouped by interface.
+    - A section with nothing to say is one line ("This IP has no
+      software-visible registers."), never removed.
 -->
+[![Version](https://img.shields.io/github/v/tag/deuskane/asylum-system-mailbox?filter=asylum-system-mailbox-*&label=version&color=blue)](https://github.com/deuskane/asylum-system-mailbox/tags)
+[![License](https://img.shields.io/github/license/deuskane/asylum-system-mailbox)](LICENSE)
+
 [![CI](https://github.com/deuskane/asylum-system-mailbox/actions/workflows/ci.yml/badge.svg)](https://github.com/deuskane/asylum-system-mailbox/actions/workflows/ci.yml)
+[![lint](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fdeuskane%2Fasylum-system-mailbox%2Fbadges%2Flint.json)](https://github.com/deuskane/asylum-system-mailbox/actions/workflows/ci.yml)
+[![sim](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fdeuskane%2Fasylum-system-mailbox%2Fbadges%2Fsim.json)](https://github.com/deuskane/asylum-system-mailbox/actions/workflows/ci.yml)
+[![syn](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fdeuskane%2Fasylum-system-mailbox%2Fbadges%2Fsyn.json)](https://github.com/deuskane/asylum-system-mailbox/actions/workflows/ci.yml)
 
-# asylum-system-mailbox
+# Mailbox
 
-**Two-channel byte mailbox (FIFOs looped back in hardware) with CSR access over the SBI bus.**
+**A small, readable mailbox in VHDL: two byte channels made of FIFOs, blocking or non blocking accesses, status registers and status outputs for an interrupt controller.**
 
-VLNV: `asylum:system:mailbox:1.1.0`
+Part of the [Asylum project](https://github.com/deuskane/asylum-project), a collection of small IP cores, written to be read and learned from.
 
 ## Table of Contents
 
-1. [Introduction](#introduction)
-2. [Block Diagram](#block-diagram)
-3. [Top-Level](#top-level)
-4. [HDL Modules](#hdl-modules)
-5. [Register Map](#register-map)
-6. [Verification](#verification)
-7. [Synthesis](#synthesis)
-8. [Design Notes](#design-notes)
-9. [Directory Structure](#directory-structure)
-10. [Dependencies](#dependencies)
+1. [Overview](#overview)
+2. [Features](#features)
+3. [Block Diagram](#block-diagram)
+4. [Getting Started](#getting-started)
+5. [Hardware Interfaces](#hardware-interfaces)
+6. [Configuration](#configuration)
+7. [Resources](#resources)
+8. [Theory of Operation](#theory-of-operation)
+9. [Registers](#registers)
+10. [Programmer's Guide](#programmers-guide)
+11. [Design Verification](#design-verification)
+12. [Dependencies and Related IPs](#dependencies-and-related-ips)
+13. [License](#license)
 
-## Introduction
+## Overview
 
-This IP is the mailbox of the Asylum project. It provides two independent byte channels, `fifo0` and `fifo1`, that software agents sharing an SBI interconnect can use to exchange messages. Each channel is a regtool register of type `fifo` (`csr_fifo`) containing a software-to-hardware (SW2HW) FIFO and a hardware-to-software (HW2SW) FIFO. `sbi_mailbox` connects the hardware side of the SW2HW FIFO directly to the HW2SW FIFO of the same register, so a byte written at a channel address is read back, in FIFO order, at the same address. The IP is instantiated as an SBI target in `asylum-soc-picosoc` (`PicoSoC_user.vhd`).
+This IP lets software pass bytes from a producer to a consumer that share the bus: two tasks, an interrupt handler and the main loop. It has two independent channels, `fifo0` and `fifo1`: a byte written to a channel is read back, in order, from the same channel. Software drives the IP through four 8-bit registers on the SBI bus (the simple bus of Asylum): the two channels and their status. The status flags are also outputs, to raise an interrupt when a byte is available.
 
-### Key Features
+## Features
 
-- 2 independent 8-bit channels: `fifo0` at address `0x0`, `fifo1` at address `0x2`
-- Status register per channel: `status0` at `0x1`, `status1` at `0x3` (`empty`: a read would stall, `full`: a write would stall)
-- Per-channel buffering split in two FIFOs with configurable depths (`FIFOn_DEPTH_TX` before the loopback, `FIFOn_DEPTH_RX` after it); capacity of a channel = `FIFOn_DEPTH_TX + FIFOn_DEPTH_RX`
-- Blocking read and blocking write by default: an access to an empty (read) or full (write) channel holds `sbi_tgt_o.ready` low until it can complete; non blocking accesses selected by `BLOCKING_READ` / `BLOCKING_WRITE` = false
-- Status outputs `fifo_empty_o` / `fifo_full_o` (same flags as the status registers) to connect to an interrupt controller (GIC), e.g. `not fifo_empty_o(n)` as a "data available" interrupt source; without them software polls the status registers
-- Instance name (`NAME`) reported in `sbi_tgt_o.info.name` (default `"mailbox"`)
-- CSR bank generated by regtool from [hdl/csr/mailbox.hjson](hdl/csr/mailbox.hjson)
+- 2 independent 8-bit channels, `fifo0` (address 0x0) and `fifo1` (0x2)
+- Each channel is a TX FIFO looped back into an RX FIFO: capacity `DEPTH_TX + DEPTH_RX` bytes, each depth 0 (no FIFO) or a power of 2
+- Blocking accesses (default): a read of an empty channel or a write in a full channel waits (bus `ready` low)
+- Non blocking accesses (`BLOCKING_READ` / `BLOCKING_WRITE = false`): the access completes at once, a read of an empty channel pops nothing, a write in a full channel is dropped
+- Status registers `status0` (0x1) and `status1` (0x3): `empty` and `full` flags, never blocking
+- Status outputs `fifo_empty_o` / `fifo_full_o`, same flags, e.g. interrupt sources of the Asylum GIC
+- Depths checked at elaboration (0 or a power of 2, not both 0 in a channel)
 
 ## Block Diagram
 
-Diagram: [doc/mailbox.drawio](doc/mailbox.drawio) (open with diagrams.net or the VS Code Draw.io extension).
+![Block diagram of sbi_mailbox](doc/mailbox-Overview.png)
 
-- The SBI bus accesses `mailbox_registers` (generated by regtool from [hdl/csr/mailbox.hjson](hdl/csr/mailbox.hjson)).
-- Each register `fifoN` is a `csr_fifo` instance: a software write pushes into the SW2HW FIFO (depth `FIFOn_DEPTH_TX`), a software read pops from the HW2SW FIFO (depth `FIFOn_DEPTH_RX`).
-- `sbi_mailbox` loops `sw2hw.fifoN.valid` / `sw2hw.fifoN.value` back to `hw2sw.fifoN.valid` / `hw2sw.fifoN.value`, and `sw2hw.fifoN.ready` (HW2SW FIFO ready) back to `hw2sw.fifoN.ready` (SW2HW FIFO pop): bytes move from one FIFO to the other without software intervention.
-- The two channels share nothing but the SBI port. The `statusN` registers (`csr_reg` `ro`, written by the hardware every cycle, one read wait state) return the flags that drive the `csr_fifo` busy signals: `empty` = `sw2hw.fifoN.hw2sw_empty` (HW2SW side, or SW2HW output when `FIFOn_DEPTH_RX = 0`), `full` = `sw2hw.fifoN.sw2hw_full` (SW2HW side, or HW2SW input when `FIFOn_DEPTH_TX = 0`).
+## Getting Started
 
-## Top-Level
+The cores of the Asylum IPs are published in the FuseSoC library [asylum-cores](https://github.com/deuskane/asylum-cores) (with the UVVM core used by the testbench):
 
-Top-level entity: **`sbi_mailbox`** ([hdl/sbi_mailbox.vhd](hdl/sbi_mailbox.vhd)), library `asylum`, component declared in `asylum.mailbox_pkg`.
+```bash
+pip install fusesoc
+fusesoc library add https://github.com/deuskane/asylum-cores
+fusesoc run --target sim_mailbox_4_4_fill asylum:system:mailbox  # needs GHDL
+```
 
-### Parameters
-
-| Name | Type | Default | Description |
-|------|------|---------|-------------|
-| `NAME` | string | `""` | Instance name, forwarded to the CSR block (`MODULE_NAME`, visible in `sbi_tgt_o.info.name`; `"mailbox"` when empty) |
-| `FIFO0_DEPTH_TX` | natural | *(none)* | Depth of the `fifo0` SW2HW FIFO (written by software, 0 = no FIFO, else a power of 2: elaboration assertion) |
-| `FIFO0_DEPTH_RX` | natural | *(none)* | Depth of the `fifo0` HW2SW FIFO (read by software, 0 = no FIFO, else a power of 2: elaboration assertion); `FIFO0_DEPTH_TX + FIFO0_DEPTH_RX` must be > 0 (assertion) |
-| `FIFO1_DEPTH_TX` | natural | *(none)* | Depth of the `fifo1` SW2HW FIFO (written by software, 0 = no FIFO, else a power of 2: elaboration assertion) |
-| `FIFO1_DEPTH_RX` | natural | *(none)* | Depth of the `fifo1` HW2SW FIFO (read by software, 0 = no FIFO, else a power of 2: elaboration assertion); `FIFO1_DEPTH_TX + FIFO1_DEPTH_RX` must be > 0 (assertion) |
-| `BLOCKING_READ` | boolean | `true` | `true`: a read of an empty channel waits for a data (`ready` low); `false`: it completes at once, data not valid, nothing popped |
-| `BLOCKING_WRITE` | boolean | `true` | `true`: a write in a full channel waits for a free slot (`ready` low); `false`: it completes at once, the byte is dropped |
-
-### Ports
-
-#### Clock & Reset
-
-| Name | Direction | Type | Description |
-|------|-----------|------|-------------|
-| `clk_i` | in | std_logic | System clock |
-| `arst_b_i` | in | std_logic | Asynchronous reset, active low |
-
-#### Bus (SBI)
-
-| Name | Direction | Type | Description |
-|------|-----------|------|-------------|
-| `sbi_ini_i` | in | sbi_ini_t | SBI request from the initiator (`cs`, `re`, `we`, `addr`, `wdata`) |
-| `sbi_tgt_o` | out | sbi_tgt_t | SBI response to the initiator (`ready`, `rdata`, `info`) |
-
-#### Status
-
-| Name | Direction | Type | Description |
-|------|-----------|------|-------------|
-| `fifo_empty_o` | out | std_logic_vector(1 downto 0) | Bit n: `fifo<n>` has no data to read (a read stalls), same as `statusN.empty`; combinational from the FIFO flags |
-| `fifo_full_o` | out | std_logic_vector(1 downto 0) | Bit n: `fifo<n>` has no free slot (a write stalls), same as `statusN.full`; combinational from the FIFO flags |
-
-The status outputs can be left open. To raise an interrupt, connect them to a GIC (`asylum:system:GIC`): `not fifo_empty_o(n)` when a data is available, `not fifo_full_o(n)` when a slot is free. These are levels: the source stays active until software pops (or pushes) enough, so clear the `isr` bit after the access.
-
-### Instantiation Example
+To use the IP in your design, add `asylum:system:mailbox` to the `depend` list of your core and instantiate `sbi_mailbox` (library `asylum`):
 
 ```vhdl
 library asylum;
 use     asylum.sbi_pkg.all;
 use     asylum.mailbox_pkg.all;
 
-  ins_mailbox : entity asylum.sbi_mailbox
+  ins_mailbox : sbi_mailbox
     generic map
     ( NAME           => "MAILBOX0"
      ,FIFO0_DEPTH_TX => 4
@@ -135,186 +98,256 @@ use     asylum.mailbox_pkg.all;
      ,FIFO1_DEPTH_RX => 4
     )
     port map
-    ( clk_i     => clk
-     ,arst_b_i  => arst_b
-     ,sbi_ini_i => sbi_inis(MAILBOX_ID)  -- sbi_ini_t(addr(1 downto 0), wdata(7 downto 0))
-     ,sbi_tgt_o => sbi_tgts(MAILBOX_ID)  -- sbi_tgt_t(rdata(7 downto 0))
-     ,fifo_empty_o => mailbox_empty      -- e.g. not mailbox_empty to a GIC
+    ( clk_i        => clk
+     ,arst_b_i     => arst_b
+     ,sbi_ini_i    => sbi_ini       -- 2 address bits, 8-bit data
+     ,sbi_tgt_o    => sbi_tgt
+     ,fifo_empty_o => mailbox_empty -- not mailbox_empty(n) : byte available in fifo<n>
      ,fifo_full_o  => open
     );
 ```
 
-The CSR bank uses 2 address bits (`MAILBOX_ADDR_WIDTH = 2`) and 8-bit data (`MAILBOX_DATA_WIDTH = 8`), see `asylum.mailbox_csr_pkg`.
+[PicoSoC](https://github.com/deuskane/asylum-soc-picosoc) is a complete example: `not fifo_empty_o` drives two sources of its interrupt controller, with the software macros [esw/include/mailbox.h](https://github.com/deuskane/asylum-soc-picosoc/blob/main/esw/include/mailbox.h).
 
-## HDL Modules
+## Hardware Interfaces
 
-| File | Unit | Kind | Role |
-|------|------|------|------|
-| [hdl/mailbox_pkg.vhd](hdl/mailbox_pkg.vhd) | `mailbox_pkg` | package | Component declaration of `sbi_mailbox` |
-| [hdl/sbi_mailbox.vhd](hdl/sbi_mailbox.vhd) | `sbi_mailbox` | entity | Top-level: CSR bank + SW2HW to HW2SW loopback of both channels |
-| hdl/csr/mailbox_csr.vhd | `mailbox_registers` | entity | Generated CSR bank (regtool), two `csr_fifo` and two `csr_reg` (status) instances |
-| hdl/csr/mailbox_csr_pkg.vhd | `mailbox_csr_pkg` | package | Generated types (`mailbox_sw2hw_t`, `mailbox_hw2sw_t`), addresses (`MAILBOX_FIFO0`, `MAILBOX_STATUS0`, `MAILBOX_FIFO1`, `MAILBOX_STATUS1`), widths and component `mailbox_registers` |
+Top-level entity: **`sbi_mailbox`** ([hdl/sbi_mailbox.vhd](hdl/sbi_mailbox.vhd)), component in `asylum.mailbox_pkg`.
 
-### mailbox_registers
-
-Generated by regtool; documented here because `sbi_mailbox` is only a thin wrapper around it.
-
-#### Parameters
-
-| Name | Type | Default | Description |
-|------|------|---------|-------------|
-| `MODULE_NAME` | string | `""` | Name returned in `sbi_tgt_o.info.name` (`"mailbox"` when empty) |
-| `FIFO0_DEPTH_TX` | natural | *(none)* | `DEPTH_SW2HW` of the `fifo0` `csr_fifo` |
-| `FIFO0_DEPTH_RX` | natural | *(none)* | `DEPTH_HW2SW` of the `fifo0` `csr_fifo` |
-| `FIFO1_DEPTH_TX` | natural | *(none)* | `DEPTH_SW2HW` of the `fifo1` `csr_fifo` |
-| `FIFO1_DEPTH_RX` | natural | *(none)* | `DEPTH_HW2SW` of the `fifo1` `csr_fifo` |
-| `BLOCKING_READ` | boolean | *(none)* | `BLOCKING_READ` of both `csr_fifo` |
-| `BLOCKING_WRITE` | boolean | *(none)* | `BLOCKING_WRITE` of both `csr_fifo` |
-
-#### Ports
+### Clock and Reset
 
 | Name | Direction | Type | Description |
 |------|-----------|------|-------------|
-| `clk_i` | in | std_logic | System clock |
-| `arst_b_i` | in | std_logic | Asynchronous reset, active low |
-| `sbi_ini_i` | in | sbi_ini_t | SBI request |
-| `sbi_tgt_o` | out | sbi_tgt_t | SBI response (`ready` low while a blocking access is pending) |
-| `sw2hw_o` | out | mailbox_sw2hw_t | Per channel: `valid`, `value(7:0)` (SW2HW FIFO output), `ready` (HW2SW FIFO input ready), `sw2hw_empty/full`, `hw2sw_empty/full`; `statusN.re` strobe |
-| `hw2sw_i` | in | mailbox_hw2sw_t | Per channel: `valid`, `value(7:0)` (HW2SW FIFO input), `ready` (SW2HW FIFO pop); `statusN.empty`, `statusN.full`, `statusN.we` |
+| `clk_i` | in | std_logic | System clock, the only clock of the IP |
+| `arst_b_i` | in | std_logic | Asynchronous reset, active low: both channels are emptied |
 
-## Register Map
+### Bus (SBI)
 
-The register map is generated by regtool from [hdl/csr/mailbox.hjson](hdl/csr/mailbox.hjson):
+| Name | Direction | Type | Description |
+|------|-----------|------|-------------|
+| `sbi_ini_i` | in | sbi_ini_t | Request from the initiator (`cs`, `re`, `we`, `addr`, `wdata`); 2 address bits, 8-bit data |
+| `sbi_tgt_o` | out | sbi_tgt_t | Response to the initiator (`ready`, `rdata`, `info`); `ready` low while a blocking access waits |
+
+### Status
+
+| Name | Direction | Type | Description |
+|------|-----------|------|-------------|
+| `fifo_empty_o` | out | std_logic_vector(1 downto 0) | Bit n: no byte to read in `fifo<n>`, same flag as `status<n>.empty`; 1 after reset |
+| `fifo_full_o` | out | std_logic_vector(1 downto 0) | Bit n: no free slot in `fifo<n>`, same flag as `status<n>.full` |
+
+The status outputs are combinational from the FIFO flags (the status registers sample them). They can be left open. They are levels: an interrupt on `not fifo_empty_o(n)` stays active until software has read every byte of the channel.
+
+## Configuration
+
+Generics of `sbi_mailbox`:
+
+| Name | Type | Default | Description |
+|------|------|---------|-------------|
+| `NAME` | string | `""` | Instance name, visible in `sbi_tgt_o.info` (`"mailbox"` when empty) |
+| `FIFO0_DEPTH_TX` | natural | *(none)* | Depth of the TX FIFO of `fifo0` (written by software): 0 (no FIFO) or a power of 2 |
+| `FIFO0_DEPTH_RX` | natural | *(none)* | Depth of the RX FIFO of `fifo0` (read by software): 0 (no FIFO) or a power of 2 |
+| `FIFO1_DEPTH_TX` | natural | *(none)* | Depth of the TX FIFO of `fifo1`: 0 or a power of 2 |
+| `FIFO1_DEPTH_RX` | natural | *(none)* | Depth of the RX FIFO of `fifo1`: 0 or a power of 2 |
+| `BLOCKING_READ` | boolean | `true` | `true`: a read of an empty channel waits for a byte; `false`: it completes at once, the data is not valid and nothing is popped |
+| `BLOCKING_WRITE` | boolean | `true` | `true`: a write in a full channel waits for a free slot; `false`: it completes at once and the byte is dropped |
+
+A depth that is neither 0 nor a power of 2, or a channel with both depths 0, stops the elaboration (assertion, severity failure). A depth of 1 needs `asylum:component:fifo` >= 1.2.1. The FIFO depths set most of the area of the IP.
+
+## Resources
+
+Figures of the `syn_*` targets (`make nonreg_syn`, see [Targets](#targets)): [syn/sbi_mailbox_wrapper.vhd](syn/sbi_mailbox_wrapper.vhd) with the FIFO depths of each configuration (blocking accesses: the wrapper does not set `BLOCKING_READ` / `BLOCKING_WRITE`), synthesized by Yosys and its GHDL plugin; the reports are in the build directory of each target. FIFO depths as FIFO0 TX / RX, FIFO1 TX / RX.
+
+| Configuration | LUT¹ | LUTRAM¹ | FF¹ | CARRY4¹ | MUXF7/F8¹ | BRAM¹ | DSP¹ | Area² (µm²) | kGE³ |
+|---|---|---|---|---|---|---|---|---|---|
+| `syn_default` (FIFOs 4/4/4/4) | 79 | 32 | 30 | 8 | 13 | 0 | 0 | 6322.31 | 1.684 |
+| `syn_depth0` (FIFOs 0/4/2/0) | 51 | 16 | 16 | 2 | 7 | 0 | 0 | 2630.02 | 0.701 |
+| `syn_depth2_8` (FIFOs 2/2/8/2) | 71 | 32 | 26 | 2 | 6 | 0 | 0 | 5458.99 | 1.454 |
+| `syn_depth1` (FIFOs 1/1/1/0) | 38 | 0 | 36 | 0 | 0 | 0 | 0 | 1347.54 | 0.359 |
+
+¹ Xilinx Artix-7 (LUT6), Yosys 0.33 `synth_xilinx -flatten -noiopad -noclkbuf`, before place and route: every cell of the netlist is counted, Vivado may differ. An `INV` counts as a `LUT1` (38 of the 79 LUTs of `syn_default`). The FIFO storage is in LUTRAM (`RAM32M`, 4 LUTs each), not in BRAM; with a depth of 1 the storage is a register (`syn_depth1`: no LUTRAM, 24 of its 36 flip-flops).
+
+² SkyWater sky130 `sky130_fd_sc_hd`, typical corner (tt, 25 °C, 1.80 V), Yosys 0.33 `synth` + `dfflibmap` + `abc -liberty`: standard-cell area only, no timing constraint, no buffering, clock tree or placement; the FIFO storage becomes flip-flops (no SRAM macro).
+
+³ Area in thousands of NAND2 gate equivalents (`sky130_fd_sc_hd__nand2_1` = 3.7536 µm²).
+
+## Theory of Operation
+
+### Hierarchy
+
+| File | Unit | Role |
+|------|------|------|
+| [hdl/sbi_mailbox.vhd](hdl/sbi_mailbox.vhd) | `sbi_mailbox` | Top level: register bank, loopback of each channel, status flags, checks of the depths |
+| [hdl/mailbox_pkg.vhd](hdl/mailbox_pkg.vhd) | `mailbox_pkg` | Component `sbi_mailbox` |
+| `hdl/csr/mailbox_csr.vhd` | `mailbox_registers` | Register bank, generated by regtool from [hdl/csr/mailbox.hjson](hdl/csr/mailbox.hjson): one `csr_fifo` per channel, one `csr_reg` per status register |
+
+### Channels
+
+`fifo0` and `fifo1` are `fifo` registers of regtool (`csr_fifo` of `asylum:utils:generators`): a software write pushes the byte in a TX FIFO (depth `FIFO<n>_DEPTH_TX`), a software read pops a byte from an RX FIFO (depth `FIFO<n>_DEPTH_RX`). `sbi_mailbox` connects the output of the TX FIFO to the input of the RX FIFO of the same channel (valid, data and ready): the bytes move from one FIFO to the other without software, a few cycles after the write. A channel therefore holds up to `DEPTH_TX + DEPTH_RX` bytes, read in the order they were written. The two channels share nothing but the bus.
+
+A depth of 0 removes that FIFO: with `DEPTH_TX = 0` the write goes straight into the RX FIFO, with `DEPTH_RX = 0` the read takes the byte at the output of the TX FIFO. With both depths 0 a write could only complete during a simultaneous read of the same channel, which a single bus port cannot do: `sbi_mailbox` refuses this configuration at elaboration.
+
+### Blocking and non blocking accesses
+
+| Access | Blocking (default) | Non blocking |
+|--------|--------------------|--------------|
+| Read of an empty channel | waits (`ready` low) until a byte arrives | completes at once, data not valid, nothing popped |
+| Write in a full channel | waits until a slot is free | completes at once, the byte is dropped |
+
+The only way to fill or drain a channel is another access on the same bus: a blocking access to an empty or full channel waits forever and holds the bus. Software reads the status first (see [Programmer's Guide](#programmers-guide)).
+
+### Status
+
+`status<n>.empty` is the empty flag of the RX FIFO (of the TX FIFO output when `DEPTH_RX = 0`), `status<n>.full` the full flag of the TX FIFO (of the RX FIFO input when `DEPTH_TX = 0`): exactly the conditions that make an access wait or fail. `full` is the flag of the TX FIFO, not of the whole channel: a write right after another one can find the TX FIFO full while the RX FIFO still has room. A blocking write then waits a few cycles, a non blocking write is dropped.
+
+The status registers are written by the hardware every cycle, so they sample the flags one cycle late; their read wait state (`rd_wait_state: 1`) makes a read right after a write or a read of the channel return the flags updated by that access. A write of a status register is ignored. `fifo_empty_o` / `fifo_full_o` are the same flags, without the register.
+
+## Registers
+
+Four 8-bit registers (2 address bits): `fifo0` (0x0), `status0` (0x1), `fifo1` (0x2), `status1` (0x3).
 
 - Register documentation: **[hdl/csr/mailbox_csr.md](hdl/csr/mailbox_csr.md)**
 - C header: [hdl/csr/mailbox_csr.h](hdl/csr/mailbox_csr.h)
+- Source: [hdl/csr/mailbox.hjson](hdl/csr/mailbox.hjson) (regtool)
 
-Notes:
+## Programmer's Guide
 
-- `fifo0` and `fifo1` are `fifo` registers; their depths and their `BLOCKING_READ` / `BLOCKING_WRITE` behaviour come from the generics of the same name (hjson `parameters`).
-- `status0` (`0x1`) and `status1` (`0x3`) are `ro` registers written by the hardware every cycle: bit 0 `empty` (1 after reset), bit 1 `full`, read without side effect; writes are ignored. They sample the flags one cycle late, so they have one read wait state (`rd_wait_state: 1`, `asylum:utils:generators` >= 2.10.0): a read right after a push or a pop returns the flags updated by that access.
-- The CSR bank is 8 bits wide with a 2-bit address; every address is mapped.
+### Never stall the bus
 
-## Verification
+- Read `fifo<n>` only when `status<n>.empty = 0`, write it only when `status<n>.full = 0`: the status registers are never blocking.
+- A channel has one producer and one consumer: between the status read and the access, only the other side can move, and it only frees a slot (for the producer) or adds a byte (for the consumer).
+- With non blocking accesses the same rule tells whether the access is valid: a read with `empty = 1` returns a non valid data, a write with `full = 1` is lost.
+- For an interrupt, use `not fifo_empty_o(n)` as a level source and read the channel until `empty = 1` in the handler.
+
+### Example: send and receive bytes
+
+The registers are 8 bits wide, at consecutive byte addresses from the base address of the IP (`0x40000000` is an example, use the address map of your SoC).
+
+```c
+#include <stdint.h>
+#include "mailbox_csr.h"
+
+#define MAILBOX_BASE ((uintptr_t)0x40000000u)   // example base address
+
+static inline void reg_wr(uint32_t offset, uint8_t data)
+{
+  *(volatile uint8_t *)(MAILBOX_BASE + offset) = data;
+}
+
+static inline uint8_t reg_rd(uint32_t offset)
+{
+  return *(volatile uint8_t *)(MAILBOX_BASE + offset);
+}
+
+// Producer: write a byte in fifo0, 0 if the channel is full
+int mailbox_send(uint8_t data)
+{
+  if (reg_rd(MAILBOX_STATUS0) & (1 << MAILBOX_STATUS0_FULL))
+    return 0;
+  reg_wr(MAILBOX_FIFO0, data);
+  return 1;
+}
+
+// Consumer: read a byte from fifo0, 0 if the channel is empty
+int mailbox_receive(uint8_t *data)
+{
+  if (reg_rd(MAILBOX_STATUS0) & (1 << MAILBOX_STATUS0_EMPTY))
+    return 0;
+  *data = reg_rd(MAILBOX_FIFO0);
+  return 1;
+}
+```
+
+`fifo1` is used the same way (`MAILBOX_FIFO1`, `MAILBOX_STATUS1`), e.g. for the answers.
+
+## Design Verification
 
 ### Testbenches
 
 | File | DUT | Description |
 |------|-----|-------------|
-| [sim/tb_mailbox.vhd](sim/tb_mailbox.vhd) | `sbi_mailbox` | UVVM testbench with the SBI VIP, depths set by the generics `FIFO0_DEPTH_TX`, `FIFO0_DEPTH_RX`, `FIFO1_DEPTH_TX`, `FIFO1_DEPTH_RX`. For each channel: T1 a read of the empty channel stalls, T2 fill to the capacity `DEPTH_TX + DEPTH_RX`, a write in the full channel stalls, read back in order, the channel is empty again, T3 write then immediate read (the blocking read completes when the byte has crossed the loopback), T4 200 random push / pop checked against a FIFO model. The status register is checked after reset, after every push of T2, after the stalled / dropped accesses and after draining. Then T5 independence of the channels, T6 writes to the status registers are ignored, T7 the asynchronous reset flushes both channels (status empty). Generics `BLOCKING_READ` / `BLOCKING_WRITE` = false: the access to an empty / full channel must complete without wait state and have no effect, and every read polls the status until `empty = 0` |
+| [sim/mailbox/tb_mailbox.vhd](sim/mailbox/tb_mailbox.vhd) | `sbi_mailbox` | Self-checking UVVM testbench with the SBI BFM, generics `TESTS_LIST` (scenarios, see below) and those of the DUT (`FIFO<n>_DEPTH_TX/RX`, `BLOCKING_READ`, `BLOCKING_WRITE`). A model of each channel (the bytes written and not read yet) gives the expected bytes, the status registers and the status outputs. An access of an empty / full channel is checked by hand: blocking, `ready` stays low during 16 cycles, then the testbench releases the access (it is the only initiator: nothing can unblock it); non blocking, the access completes without wait state. With non blocking accesses, every read polls `status.empty` and every write polls `status.full` first. Every completed access has at most 4 wait states. Scenarios in `tb_mailbox_<name>_pkg`, names and dispatch in [tb_mailbox_tests_pkg](sim/mailbox/tb_mailbox_tests_pkg.vhd), helpers (register accesses, channel model, status checks, reset pulse) in [tb_mailbox_bfm_pkg](sim/mailbox/tb_mailbox_bfm_pkg.vhd) |
 
-A stalled access is checked by holding `cs` / `re` (or `we`) during 16 cycles and verifying that `ready` stays low; the testbench then releases the access. Completing the stalled access from "the other side" is not possible: the testbench is the only initiator and the blocked access occupies the single SBI port.
+### Scenarios (`TESTS_LIST`)
+
+The scenarios are chosen at run time with the generic `TESTS_LIST`: names separated by `,` without space (`fill,random,fill`), a name may be repeated. The sequencer first checks every name (an unknown name is a `TB_ERROR` before any scenario runs), then for each scenario drives a reset pulse with the bus inactive, logs `TEST <i>/<N> : <name>` and runs it: each scenario starts from reset. The empty list (default) only compiles and elaborates the testbench. The list is parsed and its names checked with `list_length` / `list_item` / `list_contains` of `asylum.string_pkg` (`asylum:utils:pkg` >= 1.10.0).
+
+Checks counted as the `=> OK` lines of the log, FIFO depths 4/4/4/4, blocking accesses:
+
+| Name | Checks | Description |
+|------|--------|-------------|
+| `reset_values` | 14 | Each channel after reset: `status<n>` = empty, `fifo_empty_o(n) = 1`, `fifo_full_o(n) = 0`; a read of the empty channel waits (or completes, non blocking) and changes nothing |
+| `fill` | 86 | Each channel: fill it with the status after each write, a write in the full channel waits (or is dropped), read back in order, status read right after the last read (read wait state), read of the drained channel |
+| `write_read` | 8 | Each channel: a byte read just after its write, 4 times (the blocking read waits for the byte to reach the RX FIFO) |
+| `random` | 213 | Each channel: 200 random writes and reads against the model, then drained and empty |
+| `independent` | 28 | `fifo0` full while `fifo1` is empty, then used: status and outputs of both, `fifo0` read back unchanged |
+| `status_write` | 30 | Writes of `status<n>` (channel empty, then full) change neither the register nor the channel |
+| `async_reset` | 19 | Both channels full, reset asserted between two clock edges: `fifo_empty_o` / `fifo_full_o` reset at once; then empty status and channels, a write and a read |
 
 ### Targets
 
 | Target | Toplevel | Description |
 |--------|----------|-------------|
 | `default` | `sbi_mailbox` | HDL fileset + CSR generation (not a simulation) |
-| `sim_mailbox_4_4` | `tb_mailbox` | FIFO0 TX 4 / RX 4, FIFO1 TX 4 / RX 4 (configuration of `asylum-soc-picosoc`), 353 checks |
-| `sim_mailbox_depth1` | `tb_mailbox` | FIFO0 TX 1 / RX 1, FIFO1 TX 1 / RX 0 (single-word FIFOs, needs `asylum:component:fifo` >= 1.2.1), same test sequence, 290 checks |
-| `sim_mailbox_depth0` | `tb_mailbox` | FIFO0 TX 0 / RX 4, FIFO1 TX 2 / RX 0 (one FIFO bypassed per channel), 305 checks |
-| `sim_mailbox_2_8` | `tb_mailbox` | FIFO0 TX 2 / RX 2, FIFO1 TX 8 / RX 2, 341 checks |
-| `sim_mailbox_nonblocking` | `tb_mailbox` | Non blocking read and write, FIFO0 TX 4 / RX 0, FIFO1 TX 0 / RX 2, 527 checks |
-| `lint_ghdl` | `asylum.sbi_mailbox_wrapper` | Lint: GHDL `-Wall` analysis and elaboration (empty simulation) of `sbi_mailbox` in a wrapper with flat SBI ports and the status outputs (`syn/sbi_mailbox_wrapper.vhd`, depths 4 by default) |
-| `lint_ghdl_synth_default` | `asylum.sbi_mailbox_wrapper` | Synthesis check (see below), FIFO depths 4/4/4/4 (PicoSoC) |
-| `lint_ghdl_synth_depth0` | `asylum.sbi_mailbox_wrapper` | Synthesis check, FIFO depths 0/4/2/0: `FIFO0_DEPTH_TX=0`, `FIFO0_DEPTH_RX=4`, `FIFO1_DEPTH_TX=2`, `FIFO1_DEPTH_RX=0` |
-| `lint_ghdl_synth_depth2_8` | `asylum.sbi_mailbox_wrapper` | Synthesis check, FIFO depths 2/2/8/2: `FIFO0_DEPTH_TX=2`, `FIFO0_DEPTH_RX=2`, `FIFO1_DEPTH_TX=8`, `FIFO1_DEPTH_RX=2` |
-| `lint_ghdl_synth_depth1` | `asylum.sbi_mailbox_wrapper` | Synthesis check, FIFO depths 1/1/1/0: `FIFO0_DEPTH_TX=1`, `FIFO0_DEPTH_RX=1`, `FIFO1_DEPTH_TX=1`, `FIFO1_DEPTH_RX=0` |
+| `sim_mailbox_4_4` | `tb_mailbox` | Reference configuration (FIFO depths 4/4/4/4, blocking accesses): build and elaboration only (`TESTS_LIST` empty), base of the scenario targets and of the list runs |
+| `sim_mailbox_4_4_<name>` | `tb_mailbox` | One target per scenario: `sim_mailbox_4_4_reset_values`, `_fill`, `_write_read`, `_random`, `_independent`, `_status_write`, `_async_reset` (398 checks in all) |
+| `sim_mailbox_depth0` | `tb_mailbox` | FIFO0 TX 0 / RX 4, FIFO1 TX 2 / RX 0 (one FIFO removed per channel), every scenario (340 checks) |
+| `sim_mailbox_2_8` | `tb_mailbox` | FIFO0 TX 2 / RX 2, FIFO1 TX 8 / RX 2, every scenario (384 checks) |
+| `sim_mailbox_depth1` | `tb_mailbox` | FIFO0 TX 1 / RX 1, FIFO1 TX 1 / RX 0 (single-word FIFOs), every scenario (322 checks) |
+| `sim_mailbox_nonblocking` | `tb_mailbox` | Non blocking read and write, FIFO0 TX 4 / RX 0, FIFO1 TX 0 / RX 2, every scenario (803 checks) |
+| `sim_mailbox_nonblocking_write` | `tb_mailbox` | Blocking read, non blocking write, FIFO depths 4/4/4/4, every scenario (669 checks) |
+| `lint_ghdl` | `asylum.sbi_mailbox_wrapper` | GHDL `-Wall` analysis and elaboration of [syn/sbi_mailbox_wrapper.vhd](syn/sbi_mailbox_wrapper.vhd) (`sbi_mailbox` with flat SBI ports) |
+| `lint_ghdl_synth_<config>` | `asylum.sbi_mailbox_wrapper` | `ghdl --synth` check (no latch, synthesizable) for 4 FIFO depth configurations: `default` (4/4/4/4), `depth0` (0/4/2/0), `depth2_8` (2/2/8/2), `depth1` (1/1/1/0) |
+| `syn_<config>` | `asylum.sbi_mailbox_wrapper` | Synthesis with Yosys, Artix-7 and sky130 (see [Resources](#resources)), same 4 configurations as `lint_ghdl_synth_<config>`: `syn_default`, `syn_depth0`, `syn_depth2_8`, `syn_depth1` |
 
-A `lint_ghdl_synth_*` target is `lint_ghdl` with the generics of its configuration (FuseSoC `parameters`) and a `pre_run` hook, `ghdl_synth.sh` of `asylum:utils:ghdl_synth`, which adds `include ghdl_synth.mk` to the Makefile generated by edalize. The run step (`make run EXTRA_OPTIONS=<generics>`) then runs, in the build directory:
+The reference configuration of a testbench has a build-only base target and one target per scenario: one CI job per scenario, a failure is isolated. Every other configuration has one target that runs its whole list: the `TEST <i>/<N>` header names a failing scenario. FuseSoC replaces the `parameters` list of an inherited target, so each target repeats the generics of its configuration.
 
-1. `ghdl --synth` of the toplevel (rule `ghdl_synth` of `ghdl_synth.mk`), with the options of the target: `STD`, `ANALYZE_OPTIONS` (`-Wall`), `TOPLEVEL_LIBS`, `TOPLEVEL` and the generics. It writes `sbi_mailbox_wrapper_synth.vhd` (netlist) and `sbi_mailbox_wrapper_synth.log`, prints the warnings, and fails on a synthesis error (an inferred latch is one);
-2. `ghdl -r --no-run`: elaboration with the same generics, without simulation.
-
-To add a configuration, add a target with its `parameters` (the generics are declared in the `parameters` section of `mailbox.core`).
+Every `sim_*`, `lint_*` and `syn_*` target is a job of the [GitHub CI](https://github.com/deuskane/asylum-system-mailbox/actions/workflows/ci.yml), run in the [asylum-env](https://github.com/deuskane/asylum-ci) image (GHDL, FuseSoC, UVVM, Yosys). The `sim`, `lint` and `syn` badges count the passed and failed targets of the last run on `main`.
 
 ### How to Run
 
-The default tool is GHDL (`mk/defs.mk`: `TOOL ?= ghdl`, `TARGET ?= sim_mailbox_4_4`).
+From a clone of [asylum-project](https://github.com/deuskane/asylum-project) (GHDL and FuseSoC installed, or in the asylum-env image):
 
 ```bash
-make help                    # variables, rules and target list (mk/targets.txt)
-make sim_mailbox_4_4         # run one target (log in log/)
-make nonreg_sim              # run every sim_* target
-make lint_ghdl               # GHDL -Wall lint (make nonreg_lint: every lint_* target)
-make lint_ghdl_synth_default   # GHDL -Wall lint + ghdl --synth -Wall check of one configuration
-make clean                   # remove build/ and log/
+make help                        # variables, rules and targets
+make sim_mailbox_4_4_fill        # one scenario, log in log/
+make sim_mailbox_nonblocking     # every scenario of a configuration
+make nonreg_sim                  # every sim_* target
+make nonreg_lint                 # every lint_* target
+make nonreg_syn                  # every syn_* target (Yosys, figures of Resources)
+make TARGETS_FILTER=^sim_mailbox_4_4 nonreg_sim
 ```
 
-Equivalent FuseSoC command (the depths can be overridden on the command line):
+To run a list of scenarios, build the testbench once, then run the list without recompiling, either with FuseSoC (same `--build-root` and `--no-export` as the Makefile, so that the build of the target is reused; any generic of the target can be overridden after the VLNV):
 
 ```bash
-fusesoc --cores-root . run --build-root build --target sim_mailbox_4_4 asylum:system:mailbox:1.1.0 --FIFO1_DEPTH_RX=8
+make sim_mailbox_4_4             # build and elaboration (TESTS_LIST empty)
+fusesoc --cores-root . run --build-root build --no-export --run --target sim_mailbox_4_4 asylum:system:mailbox:1.1.0 --TESTS_LIST=fill,random,fill
 ```
 
-CI ([.github/workflows/ci.yml](.github/workflows/ci.yml)) runs every `sim_*` target.
+or in the build directory of the target. `EXTRA_OPTIONS` replaces every generic set by the target: repeat the generics of the configuration, else their default values apply:
 
-## Synthesis
-
-No vendor synthesis target (the `lint_ghdl_synth_*` targets check the RTL with `ghdl --synth`, see [Targets](#targets)). The HDL sources of the `default` target (`hdl/*.vhd` + generated CSR) contain no simulation-only code (no file I/O, no `translate_off` section) and are synthesizable. Resource usage is dominated by the four FIFOs (`fifo_sync` from `asylum:component:fifo`, instantiated by `csr_fifo` when a depth is non-zero).
-
-## Design Notes
-
-### Software Usage
-
-1. Agent A writes bytes to `fifo0` (address `0x0`); each write is accepted as long as the channel is not full.
-2. Agent B reads `fifo0`; bytes come out in the order they were written.
-3. `fifo1` (address `0x2`) is used the same way, typically for the opposite direction.
-
-By default (`BLOCKING_READ = BLOCKING_WRITE = true`) both data registers are blocking: a read of an empty channel or a write to a full channel keeps `sbi_tgt_o.ready` low until the condition clears. Because the only way to fill or drain a channel is another access on the same SBI port, such an access stalls indefinitely and `sbi_icn_mux_mst` keeps the bus: every other master of the interconnect is frozen. Software must therefore read `statusN` before accessing `fifoN`: read only when `empty = 0`, write only when `full = 0`. A channel has a single producer and a single consumer, so the flag cannot change against the agent between the status read and the access.
-
-```c
-#include "mailbox_csr.h"
-
-while (PORT_RD(MAILBOX, MAILBOX_STATUS0) & (1 << MAILBOX_STATUS0_FULL))  ;  // producer: wait for a free slot
-PORT_WR(MAILBOX, MAILBOX_FIFO0, data);
-
-while (PORT_RD(MAILBOX, MAILBOX_STATUS0) & (1 << MAILBOX_STATUS0_EMPTY)) ;  // consumer: wait for a data
-data = PORT_RD(MAILBOX, MAILBOX_FIFO0);
+```bash
+cd build/asylum_system_mailbox_1.1.0/sim_mailbox_4_4-ghdl
+make run EXTRA_OPTIONS="-gTESTS_LIST=fill,random -gFIFO0_DEPTH_TX=4 -gFIFO0_DEPTH_RX=4 -gFIFO1_DEPTH_TX=4 -gFIFO1_DEPTH_RX=4"
 ```
 
-With `BLOCKING_READ = false` / `BLOCKING_WRITE = false` the accesses never stall: a read of an empty channel completes at once with a non valid data and pops nothing, a write in a full channel completes at once and the byte is dropped. A faulty access can then no longer freeze the interconnect; the status registers tell whether the access was valid.
+To add a scenario: a `tb_mailbox_<name>_pkg` package with its procedure `run` (in the `sim` fileset), its name in `C_TESTS` and its case in `run_test` of [tb_mailbox_tests_pkg](sim/mailbox/tb_mailbox_tests_pkg.vhd), a `sim_mailbox_4_4_<name>` target and the name in the `TESTS_LIST` of the other configurations in [mailbox.core](mailbox.core), then `make mk/targets.txt` and `make ci_generate`.
 
-### FIFO Depths
+Outside the CI, GHDL writes a waveform `dut.fst`.
 
-- `FIFOn_DEPTH_TX = 0`: the write goes straight through `csr_fifo` to the HW2SW FIFO (accepted when it has room).
-- `FIFOn_DEPTH_RX = 0`: the read takes the byte directly from the SW2HW FIFO output (stalls while it is empty, or returns a non valid data with `BLOCKING_READ = false`).
-- `FIFOn_DEPTH_TX = 0` and `FIFOn_DEPTH_RX = 0`: the channel has no storage; a write would only complete during a simultaneous read, which cannot happen on a single SBI port. `sbi_mailbox` rejects this configuration with an assertion (severity failure) at elaboration.
-- Depths must be 0 or powers of 2 (`fifo_sync` sizes its pointers with `clog2(DEPTH)`, `ram_1r1w` its address with `log2(DEPTH)`). `sbi_mailbox` checks every depth in a constant declaration (function `check_depth`, severity failure), so the error is reported at elaboration with the generic name, before the FIFO instances would fail with a port width mismatch. A depth of 1 requires `asylum:component:fifo` >= 1.2.1: older versions reported "not empty" right after reset with `DEPTH = 1`, so a read of the empty channel returned garbage instead of stalling (covered by `sim_mailbox_depth1`).
+## Dependencies and Related IPs
 
-## Directory Structure
+| Core | Repository | Purpose |
+|------|------------|---------|
+| `asylum:utils:generators` (>= 2.10.0) | [asylum-utils-generators](https://github.com/deuskane/asylum-utils-generators) | regtool (register generator) and the CSR building blocks (`csr_fifo`, `csr_reg` with read wait states) |
+| `asylum:component:fifo` (>= 1.2.1 for a depth of 1) | [asylum-component-fifo](https://github.com/deuskane/asylum-component-fifo) | `fifo_sync`, the FIFOs of `csr_fifo` (dependency of `asylum:utils:generators`) |
+| `asylum:utils:pkg` | [asylum-utils-pkg](https://github.com/deuskane/asylum-utils-pkg) | Common packages (`sbi_pkg`, `math_pkg`, ...); the testbench needs >= 1.10.0 (`string_pkg` lists of `TESTS_LIST`) |
+| `asylum:target:techmap` | [asylum-target-techmap](https://github.com/deuskane/asylum-target-techmap) | `techmap_pkg` (`use` clause of `sbi_mailbox`, no cell instantiated) |
+| `asylum:utils:ghdl_synth` | [asylum-utils-generators](https://github.com/deuskane/asylum-utils-generators) | `ghdl --synth` check of the `lint_ghdl_synth_*` targets |
+| `asylum:utils:yosys_synth` | [asylum-utils-generators](https://github.com/deuskane/asylum-utils-generators) | Yosys synthesis of the `syn_*` targets (Artix-7 and sky130) |
+| `bitvis:verification:uvvm` | [UVVM](https://github.com/UVVM/UVVM) | Verification library and SBI BFM |
 
-```
-asylum-system-mailbox/
-├── mailbox.core                # FuseSoC core (asylum:system:mailbox)
-├── Makefile                    # Common Asylum Makefile (FuseSoC wrapper)
-├── mk/
-│   ├── defs.mk                 # FILE_CORE, default TARGET and TOOL
-│   └── targets.txt             # Target list (generated from the .core)
-├── doc/
-│   └── mailbox.drawio          # Block diagram
-├── sim/
-│   └── tb_mailbox.vhd          # UVVM testbench
-├── syn/
-│   └── sbi_mailbox_wrapper.vhd    # Lint / synthesis check wrapper (flat SBI ports)
-├── hdl/
-│   ├── mailbox_pkg.vhd
-│   ├── sbi_mailbox.vhd
-│   └── csr/
-│       ├── mailbox.hjson       # Register description (source)
-│       ├── mailbox_csr.vhd     # Generated
-│       ├── mailbox_csr_pkg.vhd # Generated
-│       ├── mailbox_csr.md      # Generated
-│       └── mailbox_csr.h       # Generated
-└── .github/workflows/ci.yml    # CI (one job per sim_* target, generated by make ci_generate)
-```
+Used by [asylum-soc-picosoc](https://github.com/deuskane/asylum-soc-picosoc). Other system IPs of Asylum: [GIC](https://github.com/deuskane/asylum-system-gic) (interrupt controller, sources `not fifo_empty_o`), [spinlock](https://github.com/deuskane/asylum-system-spinlock). All the IPs: [asylum-project](https://github.com/deuskane/asylum-project).
 
-## Dependencies
+## License
 
-| Core | Used by (fileset) | Purpose |
-|------|-------------------|---------|
-| `asylum:utils:generators` (`>=2.10.0`) | `hdl` | regtool generator and CSR building blocks (`csr_fifo`, which pulls `asylum:component:fifo`) |
-| `asylum:utils:pkg` | `hdl` | Common packages (`sbi_pkg`, `logic_pkg`) |
-| `asylum:target:techmap` | `hdl` | `techmap_pkg` (referenced by a `use` clause in `sbi_mailbox.vhd`; no cell is instantiated) |
-| `asylum:utils:ghdl_synth` | `syn` | `ghdl_synth.sh` / `ghdl_synth.mk` (`pre_run` hook of `lint_ghdl_synth_*`) |
-| `bitvis:verification:uvvm` | `sim` | UVVM utility library and SBI VIP (`bitvis_vip_sbi`) |
+Apache License 2.0, see [LICENSE](LICENSE).
