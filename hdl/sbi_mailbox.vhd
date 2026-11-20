@@ -35,7 +35,6 @@ use     asylum.math_pkg.all;
 use     asylum.sbi_pkg.all;
 use     asylum.mailbox_pkg.all;
 use     asylum.mailbox_csr_pkg.all;
-use     asylum.techmap_pkg.all;
 
 entity sbi_mailbox is
   generic (
