@@ -89,6 +89,13 @@ filesets:
     depend       :
       - asylum:utils:ghdl_synth
 
+  #---------------------------------------
+  syn_yosys:
+  #---------------------------------------
+    # yosys_synth.sh / yosys_synth.mk / yosys_synth.py (pre_run hook of syn_*)
+    depend       :
+      - asylum:utils:yosys_synth
+
 #=========================================
 targets:
 #=========================================
@@ -160,6 +167,56 @@ targets:
   #---------------------------------------
     << : *lint_ghdl_synth
     description     : Synthesis check of sbi_mailbox_wrapper, FIFO depths 1/1/1/0
+    parameters      :
+      - FIFO0_DEPTH_TX=1
+      - FIFO0_DEPTH_RX=1
+      - FIFO1_DEPTH_TX=1
+      - FIFO1_DEPTH_RX=0
+
+  #---------------------------------------
+  # Synthesis : size of sbi_mailbox_wrapper with the generics of the
+  # target, Xilinx Artix-7 (LUT, FF, BRAM, DSP) and sky130 (area), by Yosys
+  # and its GHDL plugin. Same configurations as lint_ghdl_synth_*.
+  # The pre_run hook (yosys_synth.sh of asylum:utils:yosys_synth) adds
+  # yosys_synth.mk to the edalize Makefile.
+  #---------------------------------------
+  syn_default : &syn
+    << : *lint_ghdl
+    description     : Synthesis (Artix-7, sky130) of sbi_mailbox_wrapper, FIFO depths 4/4/4/4 (PicoSoC)
+    filesets_append : [syn, syn_yosys]
+    tools :
+      ghdl :
+        run_options     : ["--no-run"]
+    hooks :
+      pre_run : [yosys_synth]
+
+  #---------------------------------------
+  syn_depth0 :
+  #---------------------------------------
+    << : *syn
+    description     : Synthesis (Artix-7, sky130) of sbi_mailbox_wrapper, FIFO depths 0/4/2/0
+    parameters      :
+      - FIFO0_DEPTH_TX=0
+      - FIFO0_DEPTH_RX=4
+      - FIFO1_DEPTH_TX=2
+      - FIFO1_DEPTH_RX=0
+
+  #---------------------------------------
+  syn_depth2_8 :
+  #---------------------------------------
+    << : *syn
+    description     : Synthesis (Artix-7, sky130) of sbi_mailbox_wrapper, FIFO depths 2/2/8/2
+    parameters      :
+      - FIFO0_DEPTH_TX=2
+      - FIFO0_DEPTH_RX=2
+      - FIFO1_DEPTH_TX=8
+      - FIFO1_DEPTH_RX=2
+
+  #---------------------------------------
+  syn_depth1 :
+  #---------------------------------------
+    << : *syn
+    description     : Synthesis (Artix-7, sky130) of sbi_mailbox_wrapper, FIFO depths 1/1/1/0
     parameters      :
       - FIFO0_DEPTH_TX=1
       - FIFO0_DEPTH_RX=1
@@ -357,6 +414,12 @@ scripts:
   #---------------------------------------
   ghdl_synth :
     cmd : [bash, ghdl_synth.sh]
+
+  #---------------------------------------
+  # pre_run hook of syn_* (cwd = work_root)
+  #---------------------------------------
+  yosys_synth :
+    cmd : [bash, yosys_synth.sh]
 
 #=========================================
 parameters :
