@@ -62,10 +62,21 @@ filesets:
   sim:
   #---------------------------------------
     files:
-      - sim/tb_mailbox.vhd
+      - sim/mailbox/tb_mailbox_bfm_pkg.vhd
+      - sim/mailbox/tb_mailbox_reset_values_pkg.vhd
+      - sim/mailbox/tb_mailbox_fill_pkg.vhd
+      - sim/mailbox/tb_mailbox_write_read_pkg.vhd
+      - sim/mailbox/tb_mailbox_random_pkg.vhd
+      - sim/mailbox/tb_mailbox_independent_pkg.vhd
+      - sim/mailbox/tb_mailbox_status_write_pkg.vhd
+      - sim/mailbox/tb_mailbox_async_reset_pkg.vhd
+      - sim/mailbox/tb_mailbox_tests_pkg.vhd
+      - sim/mailbox/tb_mailbox.vhd
     file_type : vhdlSource-2008
     depend       :
       - bitvis:verification:uvvm
+      # string_pkg list_length / list_item / list_contains (TESTS_LIST)
+      - ">=asylum:utils:pkg:1.10.0"
 
   #---------------------------------------
   syn:
@@ -156,14 +167,24 @@ targets:
       - FIFO1_DEPTH_RX=0
 
   #---------------------------------------
-  sim_mailbox_4_4:
+  # tb_mailbox (sim/mailbox) : compiled once per configuration (FIFO
+  # depths, BLOCKING_READ, BLOCKING_WRITE), scenarios chosen at run time
+  # (TESTS_LIST, empty : build and elaboration only).
+  # Reference configuration : FIFO depths 4/4/4/4 (PicoSoC) :
+  # sim_mailbox_4_4 (build only) and one sim_mailbox_4_4_<test> target
+  # per scenario ; the other configurations run the whole list. Each
+  # target repeats the generics of its configuration : FuseSoC replaces
+  # the parameters list of an inherited target.
+  #---------------------------------------
+  sim_mailbox_4_4: &sim_mailbox
   #---------------------------------------
     << : *default
-    description     : Simulation of sbi_mailbox with VIP - FIFO0 TX 4 / RX 4, FIFO1 TX 4 / RX 4 (PicoSoC configuration)
+    description     : Simulation of sbi_mailbox (UVVM) - FIFO0 TX 4 / RX 4, FIFO1 TX 4 / RX 4 (PicoSoC configuration), build only (scenarios of TESTS_LIST)
     filesets_append :
       - sim
     toplevel        : tb_mailbox
     parameters      :
+      - TESTS_LIST
       - FIFO0_DEPTH_TX=4
       - FIFO0_DEPTH_RX=4
       - FIFO1_DEPTH_TX=4
@@ -171,86 +192,161 @@ targets:
     default_tool    : ghdl
     tools :
       ghdl :
-        analyze_options : ["-Wall","-fsynopsys","-frelaxed","--no-vital-checks"]
-        run_options     : ["--fst=dut.fst","--ieee-asserts=disable"]
+        analyze_options :
+          - "$(GHDL_ANALYZE_OPTION)"
+          - "-Wall"
+          - "-frelaxed"
+        run_options     :
+          - "$(GHDL_RUN_OPTION)"
+          - "--ieee-asserts=disable"
+
+  #---------------------------------------
+  sim_mailbox_4_4_reset_values:
+  #---------------------------------------
+    << : *sim_mailbox
+    description     : Simulation of sbi_mailbox (UVVM) - FIFO depths 4/4/4/4, empty channels after reset, status registers and outputs, read of an empty channel
+    parameters      :
+      - TESTS_LIST=reset_values
+      - FIFO0_DEPTH_TX=4
+      - FIFO0_DEPTH_RX=4
+      - FIFO1_DEPTH_TX=4
+      - FIFO1_DEPTH_RX=4
+
+  #---------------------------------------
+  sim_mailbox_4_4_fill:
+  #---------------------------------------
+    << : *sim_mailbox
+    description     : Simulation of sbi_mailbox (UVVM) - FIFO depths 4/4/4/4, fill each channel, write in the full channel, read back in order, status after each access
+    parameters      :
+      - TESTS_LIST=fill
+      - FIFO0_DEPTH_TX=4
+      - FIFO0_DEPTH_RX=4
+      - FIFO1_DEPTH_TX=4
+      - FIFO1_DEPTH_RX=4
+
+  #---------------------------------------
+  sim_mailbox_4_4_write_read:
+  #---------------------------------------
+    << : *sim_mailbox
+    description     : Simulation of sbi_mailbox (UVVM) - FIFO depths 4/4/4/4, read of each byte just after its write
+    parameters      :
+      - TESTS_LIST=write_read
+      - FIFO0_DEPTH_TX=4
+      - FIFO0_DEPTH_RX=4
+      - FIFO1_DEPTH_TX=4
+      - FIFO1_DEPTH_RX=4
+
+  #---------------------------------------
+  sim_mailbox_4_4_random:
+  #---------------------------------------
+    << : *sim_mailbox
+    description     : Simulation of sbi_mailbox (UVVM) - FIFO depths 4/4/4/4, random writes and reads in each channel
+    parameters      :
+      - TESTS_LIST=random
+      - FIFO0_DEPTH_TX=4
+      - FIFO0_DEPTH_RX=4
+      - FIFO1_DEPTH_TX=4
+      - FIFO1_DEPTH_RX=4
+
+  #---------------------------------------
+  sim_mailbox_4_4_independent:
+  #---------------------------------------
+    << : *sim_mailbox
+    description     : Simulation of sbi_mailbox (UVVM) - FIFO depths 4/4/4/4, fifo0 full while fifo1 is used, status of both
+    parameters      :
+      - TESTS_LIST=independent
+      - FIFO0_DEPTH_TX=4
+      - FIFO0_DEPTH_RX=4
+      - FIFO1_DEPTH_TX=4
+      - FIFO1_DEPTH_RX=4
+
+  #---------------------------------------
+  sim_mailbox_4_4_status_write:
+  #---------------------------------------
+    << : *sim_mailbox
+    description     : Simulation of sbi_mailbox (UVVM) - FIFO depths 4/4/4/4, writes of the read only status registers
+    parameters      :
+      - TESTS_LIST=status_write
+      - FIFO0_DEPTH_TX=4
+      - FIFO0_DEPTH_RX=4
+      - FIFO1_DEPTH_TX=4
+      - FIFO1_DEPTH_RX=4
+
+  #---------------------------------------
+  sim_mailbox_4_4_async_reset:
+  #---------------------------------------
+    << : *sim_mailbox
+    description     : Simulation of sbi_mailbox (UVVM) - FIFO depths 4/4/4/4, asynchronous reset of full channels
+    parameters      :
+      - TESTS_LIST=async_reset
+      - FIFO0_DEPTH_TX=4
+      - FIFO0_DEPTH_RX=4
+      - FIFO1_DEPTH_TX=4
+      - FIFO1_DEPTH_RX=4
 
   #---------------------------------------
   sim_mailbox_depth0:
   #---------------------------------------
-    << : *default
-    description     : Simulation of sbi_mailbox with VIP - FIFO0 TX 0 / RX 4, FIFO1 TX 2 / RX 0 (one FIFO bypassed per channel)
-    filesets_append :
-      - sim
-    toplevel        : tb_mailbox
+    << : *sim_mailbox
+    description     : Simulation of sbi_mailbox (UVVM) - FIFO0 TX 0 / RX 4, FIFO1 TX 2 / RX 0 (one FIFO bypassed per channel), every scenario
     parameters      :
+      - TESTS_LIST=reset_values,fill,write_read,random,independent,status_write,async_reset
       - FIFO0_DEPTH_TX=0
       - FIFO0_DEPTH_RX=4
       - FIFO1_DEPTH_TX=2
       - FIFO1_DEPTH_RX=0
-    default_tool    : ghdl
-    tools :
-      ghdl :
-        analyze_options : ["-Wall","-fsynopsys","-frelaxed","--no-vital-checks"]
-        run_options     : ["--fst=dut.fst","--ieee-asserts=disable"]
 
   #---------------------------------------
   sim_mailbox_2_8:
   #---------------------------------------
-    << : *default
-    description     : Simulation of sbi_mailbox with VIP - FIFO0 TX 2 / RX 2, FIFO1 TX 8 / RX 2
-    filesets_append :
-      - sim
-    toplevel        : tb_mailbox
+    << : *sim_mailbox
+    description     : Simulation of sbi_mailbox (UVVM) - FIFO0 TX 2 / RX 2, FIFO1 TX 8 / RX 2, every scenario
     parameters      :
+      - TESTS_LIST=reset_values,fill,write_read,random,independent,status_write,async_reset
       - FIFO0_DEPTH_TX=2
       - FIFO0_DEPTH_RX=2
       - FIFO1_DEPTH_TX=8
       - FIFO1_DEPTH_RX=2
-    default_tool    : ghdl
-    tools :
-      ghdl :
-        analyze_options : ["-Wall","-fsynopsys","-frelaxed","--no-vital-checks"]
-        run_options     : ["--fst=dut.fst","--ieee-asserts=disable"]
 
   #---------------------------------------
   sim_mailbox_depth1:
   #---------------------------------------
-    << : *default
-    description     : Simulation of sbi_mailbox with VIP - FIFO0 TX 1 / RX 1, FIFO1 TX 1 / RX 0 (single-word FIFOs)
-    filesets_append :
-      - sim
-    toplevel        : tb_mailbox
+    << : *sim_mailbox
+    description     : Simulation of sbi_mailbox (UVVM) - FIFO0 TX 1 / RX 1, FIFO1 TX 1 / RX 0 (single-word FIFOs), every scenario
     parameters      :
+      - TESTS_LIST=reset_values,fill,write_read,random,independent,status_write,async_reset
       - FIFO0_DEPTH_TX=1
       - FIFO0_DEPTH_RX=1
       - FIFO1_DEPTH_TX=1
       - FIFO1_DEPTH_RX=0
-    default_tool    : ghdl
-    tools :
-      ghdl :
-        analyze_options : ["-Wall","-fsynopsys","-frelaxed","--no-vital-checks"]
-        run_options     : ["--fst=dut.fst","--ieee-asserts=disable"]
 
   #---------------------------------------
   sim_mailbox_nonblocking:
   #---------------------------------------
-    << : *default
-    description     : Simulation of sbi_mailbox with VIP - non blocking accesses, FIFO0 TX 4 / RX 0, FIFO1 TX 0 / RX 2
-    filesets_append :
-      - sim
-    toplevel        : tb_mailbox
+    << : *sim_mailbox
+    description     : Simulation of sbi_mailbox (UVVM) - non blocking accesses, FIFO0 TX 4 / RX 0, FIFO1 TX 0 / RX 2, every scenario
     parameters      :
+      - TESTS_LIST=reset_values,fill,write_read,random,independent,status_write,async_reset
       - FIFO0_DEPTH_TX=4
       - FIFO0_DEPTH_RX=0
       - FIFO1_DEPTH_TX=0
       - FIFO1_DEPTH_RX=2
       - BLOCKING_READ=false
       - BLOCKING_WRITE=false
-    default_tool    : ghdl
-    tools :
-      ghdl :
-        analyze_options : ["-Wall","-fsynopsys","-frelaxed","--no-vital-checks"]
-        run_options     : ["--fst=dut.fst","--ieee-asserts=disable"]
+
+  #---------------------------------------
+  sim_mailbox_nonblocking_write:
+  #---------------------------------------
+    << : *sim_mailbox
+    description     : Simulation of sbi_mailbox (UVVM) - blocking read, non blocking write, FIFO depths 4/4/4/4, every scenario
+    parameters      :
+      - TESTS_LIST=reset_values,fill,write_read,random,independent,status_write,async_reset
+      - FIFO0_DEPTH_TX=4
+      - FIFO0_DEPTH_RX=4
+      - FIFO1_DEPTH_TX=4
+      - FIFO1_DEPTH_RX=4
+      - BLOCKING_READ=true
+      - BLOCKING_WRITE=false
 
 #=========================================
 scripts:
@@ -265,6 +361,12 @@ scripts:
 #=========================================
 parameters :
 #=========================================
+
+  TESTS_LIST :
+    description : Scenarios run in sequence, separated by ',' (names in sim/mailbox/tb_mailbox_tests_pkg.vhd), empty = build only
+    datatype    : str
+    default     : ""
+    paramtype   : generic
 
   FIFO0_DEPTH_TX :
     description : FIFO0 Depth of FIFO TX (SW2HW)
