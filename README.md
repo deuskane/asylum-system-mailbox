@@ -158,12 +158,12 @@ Figures of the `syn_*` targets (`make nonreg_syn`, see [Targets](#targets)): [sy
 
 | Configuration | LUT¹ | LUTRAM¹ | FF¹ | CARRY4¹ | MUXF7/F8¹ | BRAM¹ | DSP¹ | Area² (µm²) | kGE³ |
 |---|---|---|---|---|---|---|---|---|---|
-| `syn_default` (FIFOs 4/4/4/4) | 79 | 32 | 30 | 8 | 13 | 0 | 0 | 6322.31 | 1.684 |
-| `syn_depth0` (FIFOs 0/4/2/0) | 51 | 16 | 16 | 2 | 7 | 0 | 0 | 2630.02 | 0.701 |
-| `syn_depth2_8` (FIFOs 2/2/8/2) | 71 | 32 | 26 | 2 | 6 | 0 | 0 | 5458.99 | 1.454 |
-| `syn_depth1` (FIFOs 1/1/1/0) | 38 | 0 | 36 | 0 | 0 | 0 | 0 | 1347.54 | 0.359 |
+| `syn_default` (FIFOs 4/4/4/4) | 49 | 32 | 30 | 8 | 13 | 0 | 0 | 6322.31 | 1.684 |
+| `syn_depth0` (FIFOs 0/4/2/0) | 33 | 16 | 16 | 2 | 5 | 0 | 0 | 2630.02 | 0.701 |
+| `syn_depth2_8` (FIFOs 2/2/8/2) | 44 | 32 | 26 | 2 | 6 | 0 | 0 | 5458.99 | 1.454 |
+| `syn_depth1` (FIFOs 1/1/1/0) | 27 | 0 | 36 | 0 | 0 | 0 | 0 | 1347.54 | 0.359 |
 
-¹ Xilinx Artix-7 (LUT6), Yosys 0.33 `synth_xilinx -flatten -noiopad -noclkbuf`, before place and route: every cell of the netlist is counted, Vivado may differ. An `INV` counts as a `LUT1` (38 of the 79 LUTs of `syn_default`). The FIFO storage is in LUTRAM (`RAM32M`, 4 LUTs each), not in BRAM; with a depth of 1 the storage is a register (`syn_depth1`: no LUTRAM, 24 of its 36 flip-flops).
+¹ Xilinx Artix-7 (LUT6), Yosys 0.33 `synth_xilinx -flatten -noiopad -noclkbuf`, before place and route: every cell of the netlist is counted, Vivado may differ. Identical cells are merged as a vendor tool does (`opt_merge -share_all`): the inverters of an active-low reset net become one; every remaining cell is counted, an `INV` as a `LUT1` (9 of the 49 LUTs of `syn_default`). The FIFO storage is in LUTRAM (`RAM32M`, 4 LUTs each), not in BRAM; with a depth of 1 the storage is a register (`syn_depth1`: no LUTRAM, 24 of its 36 flip-flops).
 
 ² SkyWater sky130 `sky130_fd_sc_hd`, typical corner (tt, 25 °C, 1.80 V), Yosys 0.33 `synth` + `dfflibmap` + `abc -liberty`: standard-cell area only, no timing constraint, no buffering, clock tree or placement; the FIFO storage becomes flip-flops (no SRAM macro).
 
